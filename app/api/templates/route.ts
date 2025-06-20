@@ -274,6 +274,206 @@ const mockTemplates = [
     category: 'devops',
     downloads: 1850,
     rating: 4.8
+  },
+
+  // Platform Engineering Templates
+  {
+    id: '25',
+    slug: 'backstage-idp',
+    name: 'Backstage Developer Portal',
+    technology: 'Backstage',
+    description: 'Spotify Backstage IDP with software catalog, templates, and plugins',
+    features: ['Software Catalog', 'TechDocs', 'Templates', 'Scaffolder', 'Kubernetes Plugin', 'GitHub Integration'],
+    category: 'platform-engineering',
+    downloads: 2340,
+    rating: 4.8
+  },
+  {
+    id: '26',
+    slug: 'fluxcd-gitops',
+    name: 'FluxCD GitOps Platform',
+    technology: 'FluxCD',
+    description: 'Complete GitOps platform with FluxCD v2, multi-tenancy, and progressive delivery',
+    features: ['GitOps Toolkit', 'Kustomize', 'Helm Controller', 'Image Automation', 'Multi-Tenancy', 'Flagger Integration'],
+    category: 'platform-engineering',
+    downloads: 1920,
+    rating: 4.7
+  },
+  {
+    id: '27',
+    slug: 'tekton-ci',
+    name: 'Tekton CI/CD Platform',
+    technology: 'Tekton',
+    description: 'Cloud-native CI/CD with Tekton pipelines, triggers, and dashboard',
+    features: ['Pipeline as Code', 'Event Triggers', 'Task Catalog', 'Multi-Cloud', 'Dashboard UI', 'Results API'],
+    category: 'platform-engineering',
+    downloads: 1560,
+    rating: 4.6
+  },
+  {
+    id: '28',
+    slug: 'kratix-platform',
+    name: 'Kratix Platform as a Product',
+    technology: 'Kratix',
+    description: 'Platform-as-a-Product framework for building internal platforms',
+    features: ['Promise-Based API', 'Multi-Cluster', 'GitOps Native', 'Resource Composition', 'Platform Templates', 'State Store'],
+    category: 'platform-engineering',
+    downloads: 780,
+    rating: 4.5
+  },
+  {
+    id: '29',
+    slug: 'port-developer-portal',
+    name: 'Port Developer Portal',
+    technology: 'Port',
+    description: 'Internal developer portal with service catalog and self-service actions',
+    features: ['Service Catalog', 'Self-Service Actions', 'Scorecards', 'Blueprints', 'Integrations Hub', 'RBAC'],
+    category: 'platform-engineering',
+    downloads: 1120,
+    rating: 4.7
+  },
+  {
+    id: '30',
+    slug: 'humanitec-platform',
+    name: 'Humanitec Platform Orchestrator',
+    technology: 'Humanitec',
+    description: 'Platform orchestration with dynamic configuration management',
+    features: ['Score Workloads', 'Dynamic Config', 'Environment Management', 'Resource Graphs', 'Platform API', 'CLI Tools'],
+    category: 'platform-engineering',
+    downloads: 890,
+    rating: 4.6
+  },
+  {
+    id: '31',
+    slug: 'garden-io',
+    name: 'Garden Development Platform',
+    technology: 'Garden',
+    description: 'Development platform for Kubernetes with testing and preview environments',
+    features: ['Dev Environments', 'Testing Framework', 'Preview Environments', 'Dependency Graph', 'Hot Reload', 'Multi-Module'],
+    category: 'platform-engineering',
+    downloads: 1340,
+    rating: 4.5
+  },
+  {
+    id: '32',
+    slug: 'tilt-dev-env',
+    name: 'Tilt Development Environment',
+    technology: 'Tilt',
+    description: 'Multi-service development environment for Kubernetes',
+    features: ['Live Updates', 'Multi-Service', 'Resource Dependencies', 'Custom Buttons', 'Snapshots', 'Extensions'],
+    category: 'platform-engineering',
+    downloads: 1680,
+    rating: 4.6
+  },
+  {
+    id: '33',
+    slug: 'keptn-quality-gates',
+    name: 'Keptn Quality Gates',
+    technology: 'Keptn',
+    description: 'Event-driven cloud-native application lifecycle orchestration',
+    features: ['Quality Gates', 'SLO-based Evaluation', 'Automated Remediation', 'Multi-Stage Delivery', 'Observability', 'GitOps'],
+    category: 'platform-engineering',
+    downloads: 1230,
+    rating: 4.5
+  },
+  {
+    id: '34',
+    slug: 'loft-virtual-clusters',
+    name: 'Loft Virtual Clusters',
+    technology: 'Loft',
+    description: 'Virtual Kubernetes clusters for multi-tenancy and isolation',
+    features: ['vClusters', 'Sleep Mode', 'SSO Integration', 'Resource Quotas', 'Templates', 'Cost Tracking'],
+    category: 'platform-engineering',
+    downloads: 1450,
+    rating: 4.7
+  },
+  {
+    id: '35',
+    slug: 'kubevela-oam',
+    name: 'KubeVela Application Platform',
+    technology: 'KubeVela',
+    description: 'Application delivery platform based on OAM (Open Application Model)',
+    features: ['OAM', 'Application Definitions', 'Workflow Engine', 'Multi-Cluster', 'Addon System', 'VelaUX UI'],
+    category: 'platform-engineering',
+    downloads: 980,
+    rating: 4.5
+  },
+  {
+    id: '36',
+    slug: 'dapr-microservices',
+    name: 'Dapr Microservices Platform',
+    technology: 'Dapr',
+    description: 'Distributed application runtime for microservices',
+    features: ['Service Invocation', 'State Management', 'Pub/Sub', 'Bindings', 'Actors', 'Observability'],
+    category: 'platform-engineering',
+    downloads: 1760,
+    rating: 4.6
+  },
+  {
+    id: '37',
+    slug: 'keda-autoscaling',
+    name: 'KEDA Event-Driven Autoscaling',
+    technology: 'KEDA',
+    description: 'Kubernetes event-driven autoscaling for any container',
+    features: ['Event Sources', 'Custom Metrics', 'Scale to Zero', 'Multiple Scalers', 'External Metrics', 'Job Scaling'],
+    category: 'platform-engineering',
+    downloads: 2100,
+    rating: 4.8
+  },
+  {
+    id: '38',
+    slug: 'openfaas-serverless',
+    name: 'OpenFaaS Serverless Platform',
+    technology: 'OpenFaaS',
+    description: 'Serverless functions platform for Kubernetes',
+    features: ['Any Language', 'Auto-Scaling', 'Metrics', 'Async/Queuing', 'Templates', 'Function Store'],
+    category: 'platform-engineering',
+    downloads: 1890,
+    rating: 4.6
+  },
+  {
+    id: '39',
+    slug: 'knative-platform',
+    name: 'Knative Serverless Platform',
+    technology: 'Knative',
+    description: 'Kubernetes-based platform for serverless workloads',
+    features: ['Serving', 'Eventing', 'Scale to Zero', 'Traffic Splitting', 'Event Sources', 'Brokers & Triggers'],
+    category: 'platform-engineering',
+    downloads: 1650,
+    rating: 4.7
+  },
+  {
+    id: '40',
+    slug: 'rancher-platform',
+    name: 'Rancher Multi-Cluster Platform',
+    technology: 'Rancher',
+    description: 'Multi-cluster Kubernetes management platform',
+    features: ['Multi-Cluster', 'Unified RBAC', 'App Catalog', 'Fleet GitOps', 'Monitoring', 'Backup/Restore'],
+    category: 'platform-engineering',
+    downloads: 2450,
+    rating: 4.7
+  },
+  {
+    id: '41',
+    slug: 'okteto-dev-platform',
+    name: 'Okteto Development Platform',
+    technology: 'Okteto',
+    description: 'Development platform with remote development environments',
+    features: ['Dev Environments', 'Preview Environments', 'Remote Development', 'Automatic SSL', 'Secrets Management', 'GitHub Actions'],
+    category: 'platform-engineering',
+    downloads: 1120,
+    rating: 4.5
+  },
+  {
+    id: '42',
+    slug: 'shipa-app-platform',
+    name: 'Shipa Application Platform',
+    technology: 'Shipa',
+    description: 'Application management platform for Kubernetes',
+    features: ['App Frameworks', 'Policy Engine', 'Multi-Cluster', 'Developer Portal', 'Dependency Maps', 'Cost Visibility'],
+    category: 'platform-engineering',
+    downloads: 670,
+    rating: 4.4
   }
 ]
 

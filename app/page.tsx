@@ -35,6 +35,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [apiKey, setApiKey] = useState<string>('')
   const [showApiKeyInput, setShowApiKeyInput] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
   // Fetch templates from backend
   useEffect(() => {
@@ -344,11 +345,43 @@ Generated on ${new Date().toISOString()}
           />
         </div>
 
+        {/* Category Filter */}
+        <div className="mb-8">
+          <div className="flex flex-wrap gap-2 justify-center">
+            {['all', 'backend', 'frontend', 'devops', 'ai-ml', 'platform-engineering'].map((category) => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedCategory === category
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+                }`}
+              >
+                {category === 'all' ? 'All Templates' : 
+                 category === 'ai-ml' ? 'AI/ML' :
+                 category === 'platform-engineering' ? 'Platform Engineering' :
+                 category.charAt(0).toUpperCase() + category.slice(1)}
+                <span className="ml-2 text-xs opacity-75">
+                  ({category === 'all' ? templates.length : templates.filter(t => t.category === category).length})
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Templates */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6">Select a Template</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {templates.map((template) => (
+          <h2 className="text-2xl font-bold text-white mb-6">
+            {selectedCategory === 'all' ? 'All Templates' : 
+             selectedCategory === 'ai-ml' ? 'AI/ML Templates' :
+             selectedCategory === 'platform-engineering' ? 'Platform Engineering Templates' :
+             `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Templates`}
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {templates
+              .filter(template => selectedCategory === 'all' || template.category === selectedCategory)
+              .map((template) => (
               <div
                 key={template.id}
                 className={`bg-gray-800/50 backdrop-blur-sm border rounded-xl p-6 cursor-pointer transition-all hover:scale-105 ${
