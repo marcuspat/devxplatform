@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "templatesPath": "./templates",
+  "outputPath": "./generated",
+  "generators": [
+    {
+      "name": "service",
+      "enabled": true
+    },
+    {
+      "name": "api",
+      "enabled": true
+    },
+    {
+      "name": "infrastructure",
+      "enabled": true
+    }
+  ],
+  "plugins": []
+}

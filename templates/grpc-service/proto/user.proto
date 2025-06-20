@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "github.com/example/grpc-service/proto/user";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// User service definition
+service UserService {
+  // Get a user by ID
+  rpc GetUser(GetUserRequest) returns (User);
+  
+  // List users with pagination
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  
+  // Create a new user
+  rpc CreateUser(CreateUserRequest) returns (User);
+  
+  // Update an existing user
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+  
+  // Delete a user
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+  
+  // Stream user updates
+  rpc StreamUserUpdates(StreamUserUpdatesRequest) returns (stream UserUpdate);
+  
+  // Batch create users
+  rpc BatchCreateUsers(stream CreateUserRequest) returns (BatchCreateUsersResponse);
+}
+
+// User role enumeration
+enum UserRole {
+  USER_ROLE_UNSPECIFIED = 0;
+  USER_ROLE_USER = 1;
+  USER_ROLE_ADMIN = 2;
+  USER_ROLE_MODERATOR = 3;
+}
+
+// User message
+message User {
+  string id = 1;
+  string email = 2;
+  string username = 3;
+  string first_name = 4;
+  string last_name = 5;
+  UserRole role = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// Get user request
+message GetUserRequest {
+  string id = 1;
+}
+
+// List users request
+message ListUsersRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string sort_by = 3;
+  bool descending = 4;
+  string filter = 5;
+}
+
+// List users response
+message ListUsersResponse {
+  repeated User users = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  bool has_next = 5;
+}
+
+// Create user request
+message CreateUserRequest {
+  string email = 1;
+  string username = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string password = 5;
+  UserRole role = 6;
+}
+
+// Update user request
+message UpdateUserRequest {
+  string id = 1;
+  optional string email = 2;
+  optional string username = 3;
+  optional string first_name = 4;
+  optional string last_name = 5;
+  optional UserRole role = 6;
+}
+
+// Delete user request
+message DeleteUserRequest {
+  string id = 1;
+}
+
+// Stream user updates request
+message StreamUserUpdatesRequest {
+  repeated string user_ids = 1;
+  bool include_all = 2;
+}
+
+// User update event
+message UserUpdate {
+  enum UpdateType {
+    UPDATE_TYPE_UNSPECIFIED = 0;
+    UPDATE_TYPE_CREATED = 1;
+    UPDATE_TYPE_UPDATED = 2;
+    UPDATE_TYPE_DELETED = 3;
+  }
+  
+  UpdateType type = 1;
+  User user = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+// Batch create users response
+message BatchCreateUsersResponse {
+  repeated User users = 1;
+  int32 success_count = 2;
+  int32 failure_count = 3;
+  repeated string errors = 4;
+}

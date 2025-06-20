@@ -1,0 +1,302 @@
+# {{serviceName}}
+
+{{serviceDescription}}
+
+## Features
+
+- 🚀 **Express.js** with TypeScript
+- 🔒 **Security** with Helmet, CORS, and rate limiting
+- 📝 **Logging** with Winston
+- 🧪 **Testing** with Jest and Supertest
+- 🔍 **Health Checks** for monitoring
+- 📊 **Structured Error Handling**
+- 🐳 **Docker** support
+- 🔧 **Environment Configuration**
+{{#if features.database}}
+- 🗄️ **Database** with Prisma ORM
+{{/if}}
+{{#if features.redis}}
+- 🔴 **Redis** for caching
+{{/if}}
+{{#if features.swagger}}
+- 📚 **API Documentation** with Swagger
+{{/if}}
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+ 
+- npm or yarn
+{{#if features.database}}
+- PostgreSQL (or your preferred database)
+{{/if}}
+{{#if features.redis}}
+- Redis (optional)
+{{/if}}
+
+### Installation
+
+1. **Clone and install dependencies:**
+   ```bash
+   cd {{serviceName}}
+   npm install
+   ```
+
+2. **Environment setup:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+{{#if features.database}}
+3. **Database setup:**
+   ```bash
+   # Run database migrations
+   npm run db:migrate
+   
+   # Generate Prisma client
+   npm run db:generate
+   ```
+{{/if}}
+
+4. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+
+The service will be available at `http://localhost:{{port}}`
+
+## API Endpoints
+
+### Health Checks
+- `GET /health` - Basic health check
+- `GET /health/detailed` - Detailed health with dependencies
+- `GET /health/ready` - Readiness probe
+- `GET /health/live` - Liveness probe
+
+### API
+- `GET /api/v1` - API information
+- `GET /api/v1/hello` - Sample endpoint
+
+{{#if features.swagger}}
+### Documentation
+- `GET /api-docs` - Swagger API documentation
+{{/if}}
+
+## Development
+
+### Scripts
+
+```bash
+# Development
+npm run dev          # Start with hot reload
+npm run build        # Build for production
+npm run start        # Start production server
+
+# Testing
+npm run test         # Run tests
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Run tests with coverage
+
+# Code Quality
+npm run lint         # Run ESLint
+npm run lint:fix     # Fix ESLint issues
+npm run format       # Format with Prettier
+npm run typecheck    # Type checking
+
+{{#if features.database}}
+# Database
+npm run db:migrate   # Run migrations
+npm run db:generate  # Generate Prisma client
+npm run db:studio    # Open Prisma Studio
+{{/if}}
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NODE_ENV` | Environment mode | `development` |
+| `PORT` | Server port | `{{port}}` |
+| `JWT_SECRET` | JWT signing secret | Required |
+| `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` |
+{{#if features.database}}
+| `DATABASE_URL` | Database connection string | Required |
+{{/if}}
+{{#if features.redis}}
+| `REDIS_URL` | Redis connection string | Optional |
+{{/if}}
+
+## Docker
+
+### Build and run with Docker
+
+```bash
+# Build image
+npm run docker:build
+
+# Run container
+npm run docker:run
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  {{serviceName}}:
+    build: .
+    ports:
+      - "{{port}}:{{port}}"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=your-secret-here
+{{#if features.database}}
+      - DATABASE_URL=postgresql://user:pass@db:5432/{{serviceName}}
+{{/if}}
+{{#if features.redis}}
+      - REDIS_URL=redis://redis:6379
+{{/if}}
+{{#if features.database}}
+  
+  database:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB={{serviceName}}
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+{{/if}}
+{{#if features.redis}}
+  
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+{{/if}}
+
+{{#if features.database}}
+volumes:
+  postgres_data:
+{{/if}}
+{{#if features.redis}}
+  redis_data:
+{{/if}}
+```
+
+## Project Structure
+
+```
+{{serviceName}}/
+├── src/
+│   ├── config/          # Configuration files
+│   ├── middleware/      # Express middleware
+│   ├── routes/          # API routes
+│   ├── services/        # Business logic
+│   ├── models/          # Data models
+│   ├── utils/           # Utility functions
+│   ├── types/           # TypeScript types
+│   └── index.ts         # Application entry point
+├── tests/               # Test files
+├── logs/                # Log files (created at runtime)
+{{#if features.database}}
+├── prisma/              # Database schema and migrations
+{{/if}}
+├── Dockerfile           # Docker configuration
+├── docker-compose.yml   # Docker Compose setup
+└── README.md            # This file
+```
+
+## Testing
+
+The project includes comprehensive testing setup:
+
+- **Unit tests** for individual functions
+- **Integration tests** for API endpoints
+- **Health check tests** for monitoring endpoints
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+```
+
+## Monitoring
+
+### Health Checks
+
+The service provides multiple health check endpoints:
+
+1. **Basic Health** (`/health`) - Simple uptime check
+2. **Detailed Health** (`/health/detailed`) - Includes dependency checks
+3. **Readiness** (`/health/ready`) - Service ready to accept traffic
+4. **Liveness** (`/health/live`) - Service is alive
+
+### Logging
+
+Structured logging is implemented with Winston:
+- Console output in development
+- File output in production
+- Request/response logging
+- Error tracking with stack traces
+
+## Security
+
+- **Helmet.js** for security headers
+- **CORS** configuration
+- **Rate limiting** to prevent abuse
+- **Input validation** with express-validator
+- **JWT** authentication ready
+- **Environment variable** validation
+
+## Deployment
+
+### Production Checklist
+
+- [ ] Set strong JWT_SECRET
+- [ ] Configure CORS_ORIGINS for your domain
+- [ ] Set up database with proper credentials
+- [ ] Configure logging level
+- [ ] Set up monitoring and alerting
+- [ ] Review rate limiting settings
+- [ ] Enable HTTPS in reverse proxy
+
+### Environment Setup
+
+```bash
+# Production environment variables
+NODE_ENV=production
+JWT_SECRET=your-super-secret-key-here
+{{#if features.database}}
+DATABASE_URL=postgresql://user:pass@prod-db:5432/{{serviceName}}
+{{/if}}
+CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass
+6. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details.
+
+---
+
+**Generated with DevX Platform CLI**  
+Service: {{serviceName}}  
+Template: {{templateName}}  
+Generated: {{timestamp}}

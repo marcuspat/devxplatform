@@ -1,0 +1,52 @@
+{
+  "name": "@devex/infrastructure",
+  "version": "0.1.0",
+  "description": "Infrastructure and deployment tools for DevEx platform",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./docker": {
+      "types": "./dist/docker/index.d.ts",
+      "import": "./dist/docker/index.js"
+    },
+    "./kubernetes": {
+      "types": "./dist/kubernetes/index.d.ts",
+      "import": "./dist/kubernetes/index.js"
+    },
+    "./terraform": {
+      "types": "./dist/terraform/index.d.ts",
+      "import": "./dist/terraform/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rimraf dist *.tsbuildinfo",
+    "test": "vitest",
+    "test:unit": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@devex/platform-core": "workspace:*",
+    "@kubernetes/client-node": "^0.20.0",
+    "dockerode": "^4.0.0",
+    "js-yaml": "^4.1.0",
+    "shelljs": "^0.8.5"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^3.3.23",
+    "@types/node": "^20.11.0",
+    "@types/shelljs": "^0.8.15",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

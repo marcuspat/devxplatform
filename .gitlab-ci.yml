@@ -1,0 +1,843 @@
+# GitLab CI/CD Pipeline Configuration
+# Comprehensive CI/CD with security scanning, progressive deployment, and monitoring
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_BUILDKIT: 1
+  NODE_VERSION: "18"
+  POSTGRES_DB: testdb
+  POSTGRES_USER: testuser
+  POSTGRES_PASSWORD: testpass
+  REDIS_HOST: redis
+  KUBERNETES_VERSION: 1.28.0
+  HELM_VERSION: 3.13.0
+  # Caching
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
+  CYPRESS_CACHE_FOLDER: "$CI_PROJECT_DIR/cache/Cypress"
+
+# Workflow rules
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH =~ /^release\/.*/
+    - if: $CI_MERGE_REQUEST_IID
+    - if: $CI_COMMIT_TAG
+    - when: manual
+
+# Global cache configuration
+.cache_config: &cache_config
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+      - node_modules/
+    policy: pull
+
+# Stages
+stages:
+  - validate
+  - security
+  - test
+  - build
+  - scan
+  - deploy-staging
+  - monitor-staging
+  - deploy-canary
+  - monitor-canary
+  - deploy-production
+  - post-deploy
+
+# Templates
+.node_template: &node_template
+  image: node:${NODE_VERSION}-alpine
+  <<: *cache_config
+  before_script:
+    - npm ci --cache .npm --prefer-offline
+
+.docker_template: &docker_template
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+.kubernetes_template: &kubernetes_template
+  image: alpine/k8s:${KUBERNETES_VERSION}
+  before_script:
+    - apk add --no-cache curl
+    - curl https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz | tar xz
+    - mv linux-amd64/helm /usr/local/bin/
+    - kubectl config set-cluster k8s --server="$KUBE_URL" --certificate-authority="$KUBE_CA_PEM_FILE"
+    - kubectl config set-credentials gitlab --token="$KUBE_TOKEN"
+    - kubectl config set-context default --cluster=k8s --user=gitlab
+    - kubectl config use-context default
+
+# Validation Stage
+lint:
+  stage: validate
+  <<: *node_template
+  script:
+    - npm run lint
+    - npm run format:check
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+    - if: $CI_COMMIT_BRANCH
+
+typecheck:
+  stage: validate
+  <<: *node_template
+  script:
+    - npm run typecheck
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+    - if: $CI_COMMIT_BRANCH
+
+# Security Scanning Stage
+dependency-scan:
+  stage: security
+  <<: *node_template
+  script:
+    - npm audit --production --audit-level=high
+    - npx snyk test --severity-threshold=high
+  allow_failure: true
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json
+
+trivy-scan:
+  stage: security
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy fs --exit-code 0 --no-progress --format template --template "@/contrib/gitlab.tpl" -o gl-container-scanning-report.json .
+    - trivy fs --exit-code 1 --severity HIGH,CRITICAL --no-progress .
+  allow_failure: true
+  artifacts:
+    reports:
+      container_scanning: gl-container-scanning-report.json
+
+sast:
+  stage: security
+  image: 
+    name: returntocorp/semgrep
+    entrypoint: [""]
+  script:
+    - semgrep --config=auto --json --output=semgrep-report.json .
+    - semgrep --config=auto --severity ERROR .
+  artifacts:
+    reports:
+      sast: semgrep-report.json
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+    - if: $CI_COMMIT_BRANCH
+
+secret-scan:
+  stage: security
+  image:
+    name: trufflesecurity/trufflehog:latest
+    entrypoint: [""]
+  script:
+    - trufflehog filesystem . --json --no-update > trufflehog-report.json || true
+    - if grep -q "DetectorType" trufflehog-report.json; then exit 1; fi
+  artifacts:
+    reports:
+      secret_detection: trufflehog-report.json
+
+# Test Stage with Parallel Execution
+test:unit:
+  stage: test
+  <<: *node_template
+  services:
+    - postgres:15-alpine
+    - redis:7-alpine
+  parallel:
+    matrix:
+      - SHARD: [1, 2, 3, 4]
+  script:
+    - npm run build
+    - npm run test:ci -- --shard=$SHARD/4
+  coverage: '/Lines\s*:\s*(\d+\.\d+)%/'
+  artifacts:
+    when: always
+    reports:
+      junit: junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+    paths:
+      - coverage/
+    expire_in: 1 week
+
+test:integration:
+  stage: test
+  <<: *node_template
+  services:
+    - postgres:15-alpine
+    - redis:7-alpine
+  script:
+    - npm run build
+    - npm run test:integration
+  artifacts:
+    when: always
+    reports:
+      junit: test-results/integration-junit.xml
+
+test:e2e:
+  stage: test
+  image: mcr.microsoft.com/playwright:v1.40.0-focal
+  <<: *cache_config
+  services:
+    - name: postgres:15-alpine
+      alias: postgres
+    - name: redis:7-alpine
+      alias: redis
+  script:
+    - npm ci
+    - npm run build
+    - npm run test:e2e
+  artifacts:
+    when: always
+    paths:
+      - playwright-report/
+      - test-results/
+    expire_in: 1 week
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+test:performance:
+  stage: test
+  image: loadimpact/k6:latest
+  script:
+    - k6 run tests/performance/load-test.js --out json=k6-results.json
+  artifacts:
+    reports:
+      load_performance: k6-results.json
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+      when: manual
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Build Stage
+build:docker:
+  stage: build
+  <<: *docker_template
+  script:
+    # Setup Docker buildx for multi-platform builds
+    - docker buildx create --use
+    - docker buildx inspect --bootstrap
+    
+    # Build and push multi-platform image
+    - |
+      docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA \
+        --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --cache-from $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG \
+        --cache-from $CI_REGISTRY_IMAGE:latest \
+        --push \
+        .
+    
+    # Tag as latest if on main branch
+    - |
+      if [ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]; then
+        docker buildx imagetools create \
+          --tag $CI_REGISTRY_IMAGE:latest \
+          $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+      fi
+  dependencies: []
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+# Container Scanning Stage
+scan:container:
+  stage: scan
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy image --exit-code 0 --no-progress --format template --template "@/contrib/gitlab.tpl" -o gl-container-scanning-report.json $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL --no-progress $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  dependencies:
+    - build:docker
+  artifacts:
+    reports:
+      container_scanning: gl-container-scanning-report.json
+
+scan:license:
+  stage: scan
+  <<: *node_template
+  script:
+    - npx license-checker --production --json > licenses.json
+    - npx license-checker --production --failOn 'GPL;AGPL;LGPL;NGPL'
+  artifacts:
+    reports:
+      license_scanning: licenses.json
+
+# DAST Scanning
+dast:
+  stage: scan
+  image: owasp/zap2docker-stable
+  variables:
+    DAST_WEBSITE: "https://staging-$CI_COMMIT_REF_SLUG.example.com"
+  script:
+    - mkdir -p /zap/wrk
+    - zap-baseline.py -t $DAST_WEBSITE -J gl-dast-report.json -r dast-report.html
+  artifacts:
+    reports:
+      dast: gl-dast-report.json
+    paths:
+      - dast-report.html
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_MERGE_REQUEST_IID
+      when: manual
+
+# Deploy to Staging
+deploy:staging:
+  stage: deploy-staging
+  <<: *kubernetes_template
+  environment:
+    name: staging
+    url: https://staging.example.com
+    on_stop: stop:staging
+  script:
+    - |
+      helm upgrade --install app-staging ./helm/chart \
+        --namespace staging \
+        --create-namespace \
+        --set image.repository=$CI_REGISTRY_IMAGE \
+        --set image.tag=$CI_COMMIT_SHA \
+        --set environment=staging \
+        --set ingress.hosts[0].host=staging.example.com \
+        --set replicaCount=3 \
+        --wait \
+        --timeout 10m
+    
+    # Update feature flags for staging
+    - |
+      curl -X PATCH https://api.launchdarkly.com/api/v2/flags/default/new-features \
+        -H "Authorization: $LAUNCHDARKLY_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '[{
+          "op": "replace",
+          "path": "/environments/staging/on",
+          "value": true
+        }]'
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH =~ /^release\/.*/
+
+stop:staging:
+  stage: deploy-staging
+  <<: *kubernetes_template
+  environment:
+    name: staging
+    action: stop
+  script:
+    - helm uninstall app-staging --namespace staging
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+
+# Monitor Staging
+monitor:staging:
+  stage: monitor-staging
+  image: curlimages/curl:latest
+  script:
+    - sleep 60  # Wait for deployment to stabilize
+    
+    # Run smoke tests
+    - |
+      for i in {1..5}; do
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://staging.example.com/health)
+        if [ "$response" != "200" ]; then
+          echo "Health check failed with status $response"
+          exit 1
+        fi
+        sleep 10
+      done
+    
+    # Check metrics
+    - |
+      ERROR_RATE=$(curl -s -H "Authorization: Bearer $DATADOG_API_KEY" \
+        "https://api.datadoghq.com/api/v1/query?from=-5m&to=now&query=avg:app.error.rate{env:staging}")
+      
+      if (( $(echo "$ERROR_RATE > 5" | bc -l) )); then
+        echo "Staging error rate too high: $ERROR_RATE%"
+        exit 1
+      fi
+  dependencies: []
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Canary Deployment
+deploy:canary:
+  stage: deploy-canary
+  <<: *kubernetes_template
+  environment:
+    name: production-canary
+    url: https://canary.example.com
+  script:
+    # Deploy canary with 10% traffic
+    - |
+      helm upgrade --install app-canary ./helm/chart \
+        --namespace production \
+        --create-namespace \
+        --set image.repository=$CI_REGISTRY_IMAGE \
+        --set image.tag=$CI_COMMIT_SHA \
+        --set environment=production \
+        --set canary.enabled=true \
+        --set canary.weight=10 \
+        --set replicaCount=2 \
+        --wait \
+        --timeout 10m
+    
+    # Configure Istio traffic split
+    - |
+      cat <<EOF | kubectl apply -f -
+      apiVersion: networking.istio.io/v1beta1
+      kind: VirtualService
+      metadata:
+        name: app
+        namespace: production
+      spec:
+        http:
+        - match:
+          - headers:
+              canary:
+                exact: "true"
+          route:
+          - destination:
+              host: app-canary
+              port:
+                number: 8080
+            weight: 100
+        - route:
+          - destination:
+              host: app
+              port:
+                number: 8080
+            weight: 90
+          - destination:
+              host: app-canary
+              port:
+                number: 8080
+            weight: 10
+      EOF
+    
+    # Enable canary feature flags
+    - |
+      curl -X PATCH https://api.launchdarkly.com/api/v2/flags/default/new-features \
+        -H "Authorization: $LAUNCHDARKLY_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '[{
+          "op": "replace",
+          "path": "/environments/production/rules/0/rollout/variations/0/weight",
+          "value": 10
+        }]'
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_COMMIT_TAG
+
+# Monitor Canary
+monitor:canary:
+  stage: monitor-canary
+  image: curlimages/curl:latest
+  script:
+    - sleep 300  # Wait 5 minutes for metrics
+    
+    # Check canary metrics
+    - |
+      ERROR_RATE=$(curl -s -H "Authorization: Bearer $DATADOG_API_KEY" \
+        "https://api.datadoghq.com/api/v1/query?from=-5m&to=now&query=avg:app.error.rate{env:production,version:canary}")
+      
+      P99_LATENCY=$(curl -s -H "Authorization: Bearer $DATADOG_API_KEY" \
+        "https://api.datadoghq.com/api/v1/query?from=-5m&to=now&query=avg:app.latency.p99{env:production,version:canary}")
+      
+      SUCCESS_RATE=$(curl -s -H "Authorization: Bearer $DATADOG_API_KEY" \
+        "https://api.datadoghq.com/api/v1/query?from=-5m&to=now&query=avg:app.success.rate{env:production,version:canary}")
+      
+      # Validate metrics
+      if (( $(echo "$ERROR_RATE > 5" | bc -l) )); then
+        echo "Canary error rate too high: $ERROR_RATE%"
+        exit 1
+      fi
+      
+      if (( $(echo "$P99_LATENCY > 1000" | bc -l) )); then
+        echo "Canary P99 latency too high: ${P99_LATENCY}ms"
+        exit 1
+      fi
+      
+      if (( $(echo "$SUCCESS_RATE < 95" | bc -l) )); then
+        echo "Canary success rate too low: $SUCCESS_RATE%"
+        exit 1
+      fi
+  allow_failure: false
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+
+# Rollback Canary (Manual trigger)
+rollback:canary:
+  stage: monitor-canary
+  <<: *kubernetes_template
+  environment:
+    name: production-canary
+    action: stop
+  script:
+    # Remove canary deployment
+    - helm uninstall app-canary --namespace production
+    
+    # Reset traffic to 100% stable
+    - |
+      cat <<EOF | kubectl apply -f -
+      apiVersion: networking.istio.io/v1beta1
+      kind: VirtualService
+      metadata:
+        name: app
+        namespace: production
+      spec:
+        http:
+        - route:
+          - destination:
+              host: app
+              port:
+                number: 8080
+            weight: 100
+      EOF
+    
+    # Disable canary feature flags
+    - |
+      curl -X PATCH https://api.launchdarkly.com/api/v2/flags/default/new-features \
+        -H "Authorization: $LAUNCHDARKLY_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '[{
+          "op": "replace",
+          "path": "/environments/production/on",
+          "value": false
+        }]'
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Progressive Rollout to Production
+.deploy_production: &deploy_production
+  stage: deploy-production
+  <<: *kubernetes_template
+  environment:
+    name: production
+    url: https://example.com
+  script:
+    # Update traffic split
+    - |
+      cat <<EOF | kubectl apply -f -
+      apiVersion: networking.istio.io/v1beta1
+      kind: VirtualService
+      metadata:
+        name: app
+        namespace: production
+      spec:
+        http:
+        - route:
+          - destination:
+              host: app
+              port:
+                number: 8080
+            weight: $((100 - $CANARY_WEIGHT))
+          - destination:
+              host: app-canary
+              port:
+                number: 8080
+            weight: $CANARY_WEIGHT
+      EOF
+    
+    # Update feature flag rollout
+    - |
+      curl -X PATCH https://api.launchdarkly.com/api/v2/flags/default/new-features \
+        -H "Authorization: $LAUNCHDARKLY_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '[{
+          "op": "replace",
+          "path": "/environments/production/rules/0/rollout/variations/0/weight",
+          "value": '$CANARY_WEIGHT'
+        }]'
+    
+    # Monitor after rollout increase
+    - sleep 180
+    - |
+      ERROR_RATE=$(curl -s -H "Authorization: Bearer $DATADOG_API_KEY" \
+        "https://api.datadoghq.com/api/v1/query?from=-3m&to=now&query=avg:app.error.rate{env:production}")
+      
+      if (( $(echo "$ERROR_RATE > 5" | bc -l) )); then
+        echo "Error rate too high after increasing to $CANARY_WEIGHT%: $ERROR_RATE%"
+        exit 1
+      fi
+
+deploy:production:25:
+  <<: *deploy_production
+  variables:
+    CANARY_WEIGHT: 25
+  needs: ["monitor:canary"]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+
+deploy:production:50:
+  <<: *deploy_production
+  variables:
+    CANARY_WEIGHT: 50
+  needs: ["deploy:production:25"]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+
+deploy:production:75:
+  <<: *deploy_production
+  variables:
+    CANARY_WEIGHT: 75
+  needs: ["deploy:production:50"]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+
+deploy:production:100:
+  stage: deploy-production
+  <<: *kubernetes_template
+  environment:
+    name: production
+    url: https://example.com
+  script:
+    # Complete the deployment
+    - |
+      helm upgrade --install app ./helm/chart \
+        --namespace production \
+        --set image.repository=$CI_REGISTRY_IMAGE \
+        --set image.tag=$CI_COMMIT_SHA \
+        --set environment=production \
+        --set replicaCount=10 \
+        --wait \
+        --timeout 10m
+    
+    # Remove canary
+    - helm uninstall app-canary --namespace production || true
+    
+    # Reset traffic to 100% main
+    - |
+      cat <<EOF | kubectl apply -f -
+      apiVersion: networking.istio.io/v1beta1
+      kind: VirtualService
+      metadata:
+        name: app
+        namespace: production
+      spec:
+        http:
+        - route:
+          - destination:
+              host: app
+              port:
+                number: 8080
+            weight: 100
+      EOF
+    
+    # Enable all feature flags
+    - |
+      curl -X PATCH https://api.launchdarkly.com/api/v2/flags/default/new-features \
+        -H "Authorization: $LAUNCHDARKLY_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '[{
+          "op": "replace",
+          "path": "/environments/production/on",
+          "value": true
+        }]'
+  needs: ["deploy:production:75"]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+
+# Blue-Green Deployment (Alternative)
+deploy:blue-green:
+  stage: deploy-production
+  <<: *kubernetes_template
+  environment:
+    name: production
+    url: https://example.com
+  script:
+    # Deploy to green environment
+    - |
+      helm upgrade --install app-green ./helm/chart \
+        --namespace production \
+        --create-namespace \
+        --set image.repository=$CI_REGISTRY_IMAGE \
+        --set image.tag=$CI_COMMIT_SHA \
+        --set environment=production-green \
+        --set service.selector=green \
+        --wait \
+        --timeout 10m
+    
+    # Run smoke tests on green
+    - |
+      GREEN_URL=$(kubectl get svc app-green -n production -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+      for i in {1..5}; do
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://$GREEN_URL/health)
+        if [ "$response" != "200" ]; then
+          echo "Green health check failed"
+          exit 1
+        fi
+      done
+    
+    # Switch traffic to green
+    - kubectl patch svc app -n production -p '{"spec":{"selector":{"version":"green"}}}'
+    
+    # Monitor green deployment
+    - sleep 300
+    - |
+      ERROR_RATE=$(curl -s -H "Authorization: Bearer $DATADOG_API_KEY" \
+        "https://api.datadoghq.com/api/v1/query?from=-5m&to=now&query=avg:app.error.rate{env:production,version:green}")
+      
+      if (( $(echo "$ERROR_RATE > 5" | bc -l) )); then
+        echo "Error rate too high on green: $ERROR_RATE%"
+        kubectl patch svc app -n production -p '{"spec":{"selector":{"version":"blue"}}}'
+        exit 1
+      fi
+    
+    # Cleanup blue deployment
+    - helm uninstall app-blue -n production || true
+    - helm upgrade --install app-blue ./helm/chart \
+        --namespace production \
+        --set image.repository=$CI_REGISTRY_IMAGE \
+        --set image.tag=$CI_COMMIT_SHA \
+        --set environment=production-blue \
+        --set service.selector=blue
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+# Post-deployment tasks
+post-deploy:notifications:
+  stage: post-deploy
+  image: curlimages/curl:latest
+  script:
+    # Update deployment tracking in New Relic
+    - |
+      curl -X POST https://api.newrelic.com/v2/applications/$NEW_RELIC_APP_ID/deployments.json \
+        -H "X-Api-Key: $NEW_RELIC_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "deployment": {
+            "revision": "'$CI_COMMIT_SHA'",
+            "changelog": "'$CI_COMMIT_MESSAGE'",
+            "user": "'$GITLAB_USER_LOGIN'"
+          }
+        }'
+    
+    # Create Jira deployment
+    - |
+      curl -X POST https://$JIRA_DOMAIN/rest/deployments/1.0/bulk \
+        -H "Authorization: Bearer $JIRA_API_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "deployments": [{
+            "deploymentSequenceNumber": '$CI_PIPELINE_ID',
+            "updateSequenceNumber": '$CI_JOB_ID',
+            "displayName": "Production Deployment",
+            "url": "'$CI_PIPELINE_URL'",
+            "description": "Deployment to production",
+            "lastUpdated": "'$(date -u +%Y-%m-%dT%H:%M:%S.000Z)'",
+            "state": "successful",
+            "pipeline": {
+              "id": "'$CI_PROJECT_PATH'",
+              "displayName": "GitLab CI/CD",
+              "url": "'$CI_PROJECT_URL'/pipelines"
+            },
+            "environment": {
+              "id": "production",
+              "displayName": "Production",
+              "type": "production"
+            }
+          }]
+        }'
+    
+    # Send Slack notification
+    - |
+      curl -X POST $SLACK_WEBHOOK_URL \
+        -H "Content-Type: application/json" \
+        -d '{
+          "text": "Production deployment completed successfully!",
+          "attachments": [{
+            "color": "good",
+            "fields": [
+              {"title": "Project", "value": "'$CI_PROJECT_NAME'", "short": true},
+              {"title": "Version", "value": "'$CI_COMMIT_SHA'", "short": true},
+              {"title": "Branch", "value": "'$CI_COMMIT_REF_NAME'", "short": true},
+              {"title": "Deployed by", "value": "'$GITLAB_USER_LOGIN'", "short": true}
+            ]
+          }]
+        }'
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+
+post-deploy:synthetics:
+  stage: post-deploy
+  image: curlimages/curl:latest
+  script:
+    # Trigger synthetic monitoring tests
+    - |
+      curl -X POST https://api.datadoghq.com/api/v1/synthetics/tests/trigger/ci \
+        -H "Content-Type: application/json" \
+        -H "DD-API-KEY: $DATADOG_API_KEY" \
+        -H "DD-APPLICATION-KEY: $DATADOG_APP_KEY" \
+        -d '{
+          "tests": [{
+            "public_id": "'$DATADOG_SYNTHETICS_TEST_ID'",
+            "allowInsecureCertificates": false,
+            "basicAuth": {"username": "", "password": ""},
+            "body": "",
+            "bodyType": "text/plain",
+            "cookies": "",
+            "deviceIds": ["laptop_large", "mobile_small"],
+            "followRedirects": true,
+            "headers": {},
+            "locations": ["aws:us-east-1", "aws:eu-west-1"],
+            "retry": {"count": 2, "interval": 300},
+            "startUrl": "https://example.com",
+            "variables": {}
+          }]
+        }'
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+
+# Generate release
+release:
+  stage: post-deploy
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  script:
+    - echo "Creating release for $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    description: |
+      ## What's Changed
+      
+      Check the [CHANGELOG](CHANGELOG.md) for detailed information.
+      
+      **Docker Image:** `$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG`
+      
+      **Full Changelog:** $CI_PROJECT_URL/-/compare/$CI_COMMIT_BEFORE_SHA...$CI_COMMIT_SHA
+    assets:
+      links:
+        - name: "Container Image"
+          url: "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"
+  rules:
+    - if: $CI_COMMIT_TAG

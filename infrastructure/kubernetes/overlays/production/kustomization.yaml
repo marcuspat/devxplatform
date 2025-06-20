@@ -1,0 +1,54 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: production
+
+bases:
+  - ../../base/api-service
+  - ../../components/hpa
+  - ../../components/pdb
+  - ../../components/network-policies
+  - ../../components/monitoring
+  - ../../service-mesh/istio
+
+namePrefix: prod-
+
+commonLabels:
+  environment: production
+  
+commonAnnotations:
+  environment: production
+  managed-by: kustomize
+
+replicas:
+  - name: api-service
+    count: 5 # Higher base replicas for prod
+
+patchesStrategicMerge:
+  - deployment-patch.yaml
+  - hpa-patch.yaml
+  - pdb-patch.yaml
+
+configMapGenerator:
+  - name: api-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+      - ENABLE_DEBUG_ENDPOINTS=false
+      - ENABLE_METRICS=true
+      - ENABLE_TRACING=true
+
+secretGenerator:
+  - name: api-secrets
+    behavior: merge
+    envs:
+      - secrets/prod.env
+
+images:
+  - name: api-service
+    newTag: v1.0.0  # Specific version for prod
+
+resources:
+  - priority-class.yaml
+  - pod-security-policy.yaml

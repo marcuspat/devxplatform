@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "app.fullname" . }}-config
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+data:
+  # Application configuration
+  NODE_ENV: {{ .Values.env.NODE_ENV | quote }}
+  LOG_LEVEL: {{ .Values.env.LOG_LEVEL | quote }}
+  PORT: {{ .Values.env.PORT | quote }}
+  
+  # Feature flags configuration
+  {{- if .Values.featureFlags.enabled }}
+  FEATURE_FLAGS_ENABLED: "true"
+  FEATURE_FLAGS_PROVIDER: {{ .Values.featureFlags.provider | quote }}
+  FEATURE_FLAGS_ENVIRONMENT: {{ .Values.featureFlags.environment | quote }}
+  {{- end }}
+  
+  # Monitoring configuration
+  {{- if .Values.monitoring.enabled }}
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9090"
+  METRICS_PATH: {{ .Values.monitoring.serviceMonitor.path | quote }}
+  {{- end }}
+  
+  # Service mesh configuration
+  {{- if .Values.serviceMesh.enabled }}
+  SERVICE_MESH_ENABLED: "true"
+  {{- end }}
+  
+  # Additional custom configuration
+  {{- range $key, $value := .Values.additionalConfig }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

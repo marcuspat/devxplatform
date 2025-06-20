@@ -1,0 +1,97 @@
+import winston from 'winston';
+import { config } from '../config/index.js';
+
+const { combine, timestamp, errors, json, colorize, simple, printf } = winston.format;
+
+// Custom format for console output
+const consoleFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
+  const ts = timestamp.slice(0, 19).replace('T', ' ');
+  const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
+  return `${ts} [${level}]: ${stack || message} ${metaStr}`;
+});
+
+// Create logger instance
+export const logger = winston.createLogger({
+  level: config.logging.level,
+  format: combine(
+    timestamp(),
+    errors({ stack: true }),
+    json()
+  ),
+  defaultMeta: {
+    service: config.service.name,
+    version: config.service.version,
+  },
+  transports: [
+    // Write all logs to console in development
+    new winston.transports.Console({
+      format: config.env === 'development' 
+        ? combine(colorize(), timestamp(), consoleFormat)
+        : combine(timestamp(), json()),
+    }),
+    
+    // Write error logs to file
+    new winston.transports.File({
+      filename: 'logs/error.log',
+      level: 'error',
+      format: combine(timestamp(), json()),
+      maxsize: 5242880, // 5MB
+      maxFiles: 5,
+    }),
+    
+    // Write all logs to file in production
+    ...(config.env === 'production' ? [
+      new winston.transports.File({
+        filename: 'logs/combined.log',
+        format: combine(timestamp(), json()),
+        maxsize: 5242880, // 5MB
+        maxFiles: 5,
+      })
+    ] : []),
+  ],
+});
+
+// Create a stream object for Morgan
+export const logStream = {
+  write: (message: string) => {
+    logger.info(message.trim());
+  },
+};
+
+// Helper functions for structured logging
+export const createLogContext = (context: Record<string, any>) => {
+  return {
+    ...context,
+    timestamp: new Date().toISOString(),
+    service: config.service.name,
+  };
+};
+
+export const logError = (error: Error, context?: Record<string, any>) => {
+  logger.error({
+    message: error.message,
+    stack: error.stack,
+    ...createLogContext(context || {}),
+  });
+};
+
+export const logInfo = (message: string, context?: Record<string, any>) => {
+  logger.info({
+    message,
+    ...createLogContext(context || {}),
+  });
+};
+
+export const logWarn = (message: string, context?: Record<string, any>) => {
+  logger.warn({
+    message,
+    ...createLogContext(context || {}),
+  });
+};
+
+export const logDebug = (message: string, context?: Record<string, any>) => {
+  logger.debug({
+    message,
+    ...createLogContext(context || {}),
+  });
+};

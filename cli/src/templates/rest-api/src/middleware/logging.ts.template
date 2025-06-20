@@ -1,0 +1,64 @@
+import { Request, Response, NextFunction } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../utils/logger.js';
+
+// Extend Request interface to include requestId
+declare global {
+  namespace Express {
+    interface Request {
+      requestId: string;
+      startTime: number;
+    }
+  }
+}
+
+export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
+  // Generate unique request ID
+  req.requestId = uuidv4();
+  req.startTime = Date.now();
+
+  // Add request ID to response headers
+  res.setHeader('X-Request-ID', req.requestId);
+
+  // Log incoming request
+  logger.info({
+    message: 'Incoming request',
+    requestId: req.requestId,
+    method: req.method,
+    url: req.url,
+    userAgent: req.get('User-Agent'),
+    ip: req.ip,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Override res.json to log response
+  const originalJson = res.json;
+  res.json = function(body: any) {
+    const responseTime = Date.now() - req.startTime;
+    
+    logger.info({
+      message: 'Outgoing response',
+      requestId: req.requestId,
+      method: req.method,
+      url: req.url,
+      statusCode: res.statusCode,
+      responseTime: `${responseTime}ms`,
+      contentLength: res.get('Content-Length'),
+      timestamp: new Date().toISOString(),
+    });
+
+    return originalJson.call(this, body);
+  };
+
+  next();
+};
+
+export const correlationIdMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  // Use existing correlation ID from headers or generate new one
+  const correlationId = req.get('X-Correlation-ID') || req.get('X-Request-ID') || uuidv4();
+  
+  req.requestId = correlationId;
+  res.setHeader('X-Correlation-ID', correlationId);
+  
+  next();
+};

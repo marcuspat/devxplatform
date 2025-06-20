@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # API Server
+  api:
+    build: .
+    ports:
+      - "3000:3000"  # API port
+      - "9090:9090"  # Metrics port
+    environment:
+      - NODE_ENV=development
+      - MODE=api
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - worker-network
+
+  # Worker processes
+  worker:
+    build: .
+    command: ["node", "dist/worker.js"]
+    environment:
+      - NODE_ENV=development
+      - MODE=worker
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - worker-network
+    deploy:
+      replicas: 2
+
+  # Redis for job queues
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - worker-network
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+    depends_on:
+      - api
+    networks:
+      - worker-network
+
+  # Grafana for metrics visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - worker-network
+
+volumes:
+  redis-data:
+  uploads:
+  grafana-data:
+
+networks:
+  worker-network:
+    driver: bridge

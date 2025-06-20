@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  grpc-service:
+    build: .
+    ports:
+      - "50051:50051"  # gRPC port
+      - "9090:9090"    # Metrics port
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/grpc_db
+    depends_on:
+      - postgres
+    volumes:
+      - ./proto:/app/proto:ro
+      - ./src:/app/src:ro
+    networks:
+      - grpc-network
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=grpc_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - grpc-network
+
+  # gRPC client for testing
+  grpcui:
+    image: fullstorydev/grpcui:latest
+    ports:
+      - "8080:8080"
+    command: ["-plaintext", "-port", "8080", "grpc-service:50051"]
+    depends_on:
+      - grpc-service
+    networks:
+      - grpc-network
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+    depends_on:
+      - grpc-service
+    networks:
+      - grpc-network
+
+volumes:
+  postgres-data:
+
+networks:
+  grpc-network:
+    driver: bridge

@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: development
+
+bases:
+  - ../../base/api-service
+  - ../../components/hpa
+  - ../../components/network-policies
+  - ../../components/monitoring
+
+namePrefix: dev-
+
+commonLabels:
+  environment: development
+  
+commonAnnotations:
+  environment: development
+  managed-by: kustomize
+
+replicas:
+  - name: api-service
+    count: 1 # Single replica for dev
+
+patchesStrategicMerge:
+  - deployment-patch.yaml
+  - hpa-patch.yaml
+
+configMapGenerator:
+  - name: api-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+      - ENABLE_DEBUG_ENDPOINTS=true
+
+secretGenerator:
+  - name: api-secrets
+    behavior: merge
+    literals:
+      - DATABASE_URL=postgresql://dev_user:dev_pass@postgres-dev:5432/api_dev
+      - REDIS_URL=redis://redis-dev:6379/0
+
+images:
+  - name: api-service
+    newTag: dev-latest

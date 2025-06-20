@@ -1,0 +1,59 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-service-vs
+spec:
+  hosts:
+  - api.example.com
+  - api-service
+  gateways:
+  - api-gateway
+  - mesh # Internal mesh traffic
+  http:
+  # Canary deployment - 10% to new version
+  - match:
+    - headers:
+        x-version:
+          exact: canary
+    route:
+    - destination:
+        host: api-service
+        subset: v2
+      weight: 100
+  - route:
+    - destination:
+        host: api-service
+        subset: v1
+      weight: 90
+    - destination:
+        host: api-service
+        subset: v2
+      weight: 10
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure,refused-stream
+    fault:
+      delay:
+        percentage:
+          value: 0.1
+        fixedDelay: 5s
+    corsPolicy:
+      allowOrigins:
+      - exact: "*"
+      allowMethods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+      allowHeaders:
+      - authorization
+      - content-type
+      - x-request-id
+      exposeHeaders:
+      - x-ratelimit-remaining
+      - x-ratelimit-limit
+      maxAge: "24h"
+      allowCredentials: true

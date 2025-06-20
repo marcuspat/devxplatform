@@ -1,0 +1,78 @@
+import { z } from 'zod';
+
+// Environment variables schema
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.string().transform(Number).default('{{port}}'),
+  
+  // Database
+  {{#if features.database}}
+  DATABASE_URL: z.string().url(),
+  {{/if}}
+  
+  // Redis
+  {{#if features.redis}}
+  REDIS_URL: z.string().url().optional(),
+  {{/if}}
+  
+  // JWT
+  JWT_SECRET: z.string().min(32),
+  JWT_EXPIRES_IN: z.string().default('24h'),
+  
+  // CORS
+  CORS_ORIGINS: z.string().default('http://localhost:3000'),
+  
+  // Rate Limiting
+  RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default('900000'), // 15 minutes
+  RATE_LIMIT_MAX: z.string().transform(Number).default('100'),
+  
+  // Logging
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+});
+
+// Validate environment variables
+const env = envSchema.parse(process.env);
+
+export const config = {
+  env: env.NODE_ENV,
+  port: env.PORT,
+  
+  {{#if features.database}}
+  database: {
+    url: env.DATABASE_URL,
+  },
+  {{/if}}
+  
+  {{#if features.redis}}
+  redis: {
+    url: env.REDIS_URL,
+  },
+  {{/if}}
+  
+  jwt: {
+    secret: env.JWT_SECRET,
+    expiresIn: env.JWT_EXPIRES_IN,
+  },
+  
+  cors: {
+    origins: env.CORS_ORIGINS.split(',').map(origin => origin.trim()),
+  },
+  
+  rateLimit: {
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    max: env.RATE_LIMIT_MAX,
+  },
+  
+  logging: {
+    level: env.LOG_LEVEL,
+  },
+  
+  // Service metadata
+  service: {
+    name: '{{serviceName}}',
+    version: '{{version}}',
+    description: '{{serviceDescription}}',
+  },
+} as const;
+
+export type Config = typeof config;

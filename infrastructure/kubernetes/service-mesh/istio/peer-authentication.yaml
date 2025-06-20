@@ -1,0 +1,40 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: default
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: api-service-authz
+spec:
+  selector:
+    matchLabels:
+      app: api-service
+  action: ALLOW
+  rules:
+  # Allow all internal mesh traffic
+  - from:
+    - source:
+        principals: ["cluster.local/ns/default/sa/*"]
+  # Allow specific service accounts
+  - from:
+    - source:
+        principals: 
+        - "cluster.local/ns/default/sa/frontend-service"
+        - "cluster.local/ns/default/sa/worker-service"
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+  # Allow health checks
+  - to:
+    - operation:
+        paths: ["/health/*"]
+  # Rate limit by IP
+  - when:
+    - key: request.headers[x-forwarded-for]
+      values: ["*"]

@@ -1,0 +1,48 @@
+import { Router } from 'express';
+import { StatusCodes } from 'http-status-codes';
+import { asyncHandler } from '../middleware/error.js';
+import { config } from '../config/index.js';
+
+// Import route modules
+// import userRoutes from './users.js';
+// import authRoutes from './auth.js';
+
+const router = Router();
+
+// API info endpoint
+router.get('/', asyncHandler(async (req, res) => {
+  res.status(StatusCodes.OK).json({
+    success: true,
+    data: {
+      service: config.service.name,
+      version: config.service.version,
+      description: config.service.description,
+      environment: config.env,
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        health: '/health',
+        docs: '/api-docs',
+      },
+    },
+  });
+}));
+
+// Sample endpoint - replace with your actual routes
+router.get('/hello', asyncHandler(async (req, res) => {
+  const { name = 'World' } = req.query;
+  
+  res.status(StatusCodes.OK).json({
+    success: true,
+    data: {
+      message: `Hello, ${name}!`,
+      service: config.service.name,
+      timestamp: new Date().toISOString(),
+    },
+  });
+}));
+
+// Mount route modules
+// router.use('/auth', authRoutes);
+// router.use('/users', userRoutes);
+
+export default router;

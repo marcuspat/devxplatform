@@ -1,0 +1,562 @@
+name: Continuous Deployment
+
+on:
+  workflow_run:
+    workflows: ["Continuous Integration"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      strategy:
+        description: 'Deployment strategy'
+        required: true
+        type: choice
+        options:
+          - rolling
+          - blue-green
+          - canary
+        default: 'canary'
+      canary-percentage:
+        description: 'Canary deployment percentage (if applicable)'
+        required: false
+        default: '10'
+
+env:
+  HELM_VERSION: '3.13.0'
+  KUBECTL_VERSION: '1.28.0'
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  # Pre-deployment checks
+  pre-deployment:
+    name: Pre-deployment Validation
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    outputs:
+      deploy-staging: ${{ steps.check.outputs.deploy-staging }}
+      deploy-production: ${{ steps.check.outputs.deploy-production }}
+      image-tag: ${{ steps.image.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deployment conditions
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "deploy-staging=${{ github.event.inputs.environment == 'staging' }}" >> $GITHUB_OUTPUT
+            echo "deploy-production=${{ github.event.inputs.environment == 'production' }}" >> $GITHUB_OUTPUT
+          else
+            echo "deploy-staging=true" >> $GITHUB_OUTPUT
+            echo "deploy-production=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get image tag
+        id: image
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+          fi
+
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: pre-deployment
+    if: needs.pre-deployment.outputs.deploy-staging == 'true'
+    environment:
+      name: staging
+      url: https://staging.example.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name staging-cluster --region ${{ env.AWS_REGION }}
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install app ./helm/chart \
+            --namespace staging \
+            --create-namespace \
+            --set image.tag=${{ needs.pre-deployment.outputs.image-tag }} \
+            --set environment=staging \
+            --set replicaCount=3 \
+            --wait \
+            --timeout 10m
+
+      - name: Run smoke tests
+        run: |
+          kubectl wait --for=condition=ready pod -l app=app -n staging --timeout=300s
+          ./scripts/smoke-tests.sh https://staging.example.com
+
+      - name: Update feature flags
+        run: |
+          curl -X POST https://api.launchdarkly.com/api/v2/flags/default/new-feature \
+            -H "Authorization: ${{ secrets.LAUNCHDARKLY_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "environmentKey": "staging",
+              "on": true
+            }'
+
+  # Canary Deployment to Production
+  deploy-canary:
+    name: Canary Deployment
+    runs-on: ubuntu-latest
+    needs: [pre-deployment, deploy-staging]
+    if: |
+      needs.pre-deployment.outputs.deploy-production == 'true' || 
+      (github.ref == 'refs/heads/main' && needs.deploy-staging.result == 'success')
+    environment:
+      name: production-canary
+      url: https://canary.example.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name production-cluster --region ${{ env.AWS_REGION }}
+
+      - name: Deploy canary version
+        run: |
+          CANARY_WEIGHT=${{ github.event.inputs.canary-percentage || '10' }}
+          
+          helm upgrade --install app-canary ./helm/chart \
+            --namespace production \
+            --create-namespace \
+            --set image.tag=${{ needs.pre-deployment.outputs.image-tag }} \
+            --set canary.enabled=true \
+            --set canary.weight=$CANARY_WEIGHT \
+            --set environment=production \
+            --wait \
+            --timeout 10m
+
+      - name: Update Istio traffic split
+        run: |
+          kubectl apply -f - <<EOF
+          apiVersion: networking.istio.io/v1beta1
+          kind: VirtualService
+          metadata:
+            name: app
+            namespace: production
+          spec:
+            http:
+            - match:
+              - headers:
+                  canary:
+                    exact: "true"
+              route:
+              - destination:
+                  host: app-canary
+                  port:
+                    number: 8080
+                weight: 100
+            - route:
+              - destination:
+                  host: app
+                  port:
+                    number: 8080
+                weight: $((100 - ${{ github.event.inputs.canary-percentage || '10' }}))
+              - destination:
+                  host: app-canary
+                  port:
+                    number: 8080
+                weight: ${{ github.event.inputs.canary-percentage || '10' }}
+          EOF
+
+      - name: Enable canary feature flags
+        run: |
+          curl -X PATCH https://api.launchdarkly.com/api/v2/flags/default/new-feature \
+            -H "Authorization: ${{ secrets.LAUNCHDARKLY_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '[{
+              "op": "replace",
+              "path": "/environments/production/rules/0/rollout/variations/0/weight",
+              "value": ${{ github.event.inputs.canary-percentage || '10' }}
+            }]'
+
+  # Monitor canary metrics
+  monitor-canary:
+    name: Monitor Canary Metrics
+    runs-on: ubuntu-latest
+    needs: deploy-canary
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for metrics stabilization
+        run: sleep 300  # Wait 5 minutes for metrics
+
+      - name: Check error rate
+        id: error-rate
+        run: |
+          ERROR_RATE=$(curl -s -H "Authorization: Bearer ${{ secrets.DATADOG_API_KEY }}" \
+            "https://api.datadoghq.com/api/v1/query?from=-5m&to=now&query=avg:app.error.rate{env:production,version:${{ needs.pre-deployment.outputs.image-tag }}}")
+          
+          echo "error_rate=$ERROR_RATE" >> $GITHUB_OUTPUT
+          
+          if (( $(echo "$ERROR_RATE > 5" | bc -l) )); then
+            echo "Error rate too high: $ERROR_RATE%"
+            exit 1
+          fi
+
+      - name: Check latency
+        id: latency
+        run: |
+          P99_LATENCY=$(curl -s -H "Authorization: Bearer ${{ secrets.DATADOG_API_KEY }}" \
+            "https://api.datadoghq.com/api/v1/query?from=-5m&to=now&query=avg:app.latency.p99{env:production,version:${{ needs.pre-deployment.outputs.image-tag }}}")
+          
+          echo "p99_latency=$P99_LATENCY" >> $GITHUB_OUTPUT
+          
+          if (( $(echo "$P99_LATENCY > 1000" | bc -l) )); then
+            echo "P99 latency too high: ${P99_LATENCY}ms"
+            exit 1
+          fi
+
+      - name: Check success rate
+        id: success-rate
+        run: |
+          SUCCESS_RATE=$(curl -s -H "Authorization: Bearer ${{ secrets.DATADOG_API_KEY }}" \
+            "https://api.datadoghq.com/api/v1/query?from=-5m&to=now&query=avg:app.success.rate{env:production,version:${{ needs.pre-deployment.outputs.image-tag }}}")
+          
+          echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
+          
+          if (( $(echo "$SUCCESS_RATE < 95" | bc -l) )); then
+            echo "Success rate too low: $SUCCESS_RATE%"
+            exit 1
+          fi
+
+  # Automatic rollback on failure
+  rollback-canary:
+    name: Rollback Canary Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-canary, monitor-canary]
+    if: failure()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name production-cluster --region ${{ env.AWS_REGION }}
+
+      - name: Rollback canary deployment
+        run: |
+          kubectl delete deployment app-canary -n production
+          kubectl apply -f - <<EOF
+          apiVersion: networking.istio.io/v1beta1
+          kind: VirtualService
+          metadata:
+            name: app
+            namespace: production
+          spec:
+            http:
+            - route:
+              - destination:
+                  host: app
+                  port:
+                    number: 8080
+                weight: 100
+          EOF
+
+      - name: Disable feature flags
+        run: |
+          curl -X PATCH https://api.launchdarkly.com/api/v2/flags/default/new-feature \
+            -H "Authorization: ${{ secrets.LAUNCHDARKLY_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '[{
+              "op": "replace",
+              "path": "/environments/production/on",
+              "value": false
+            }]'
+
+      - name: Send rollback notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: 'Canary deployment rolled back due to metrics threshold breach!'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Progressive rollout
+  progressive-rollout:
+    name: Progressive Rollout
+    runs-on: ubuntu-latest
+    needs: [deploy-canary, monitor-canary]
+    if: success()
+    strategy:
+      matrix:
+        percentage: [25, 50, 75, 100]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name production-cluster --region ${{ env.AWS_REGION }}
+
+      - name: Increase traffic to ${{ matrix.percentage }}%
+        run: |
+          kubectl apply -f - <<EOF
+          apiVersion: networking.istio.io/v1beta1
+          kind: VirtualService
+          metadata:
+            name: app
+            namespace: production
+          spec:
+            http:
+            - route:
+              - destination:
+                  host: app
+                  port:
+                    number: 8080
+                weight: $((100 - ${{ matrix.percentage }}))
+              - destination:
+                  host: app-canary
+                  port:
+                    number: 8080
+                weight: ${{ matrix.percentage }}
+          EOF
+
+      - name: Update feature flag rollout
+        run: |
+          curl -X PATCH https://api.launchdarkly.com/api/v2/flags/default/new-feature \
+            -H "Authorization: ${{ secrets.LAUNCHDARKLY_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '[{
+              "op": "replace",
+              "path": "/environments/production/rules/0/rollout/variations/0/weight",
+              "value": ${{ matrix.percentage }}
+            }]'
+
+      - name: Monitor metrics after increase
+        run: |
+          sleep 180  # Wait 3 minutes
+          
+          ERROR_RATE=$(curl -s -H "Authorization: Bearer ${{ secrets.DATADOG_API_KEY }}" \
+            "https://api.datadoghq.com/api/v1/query?from=-3m&to=now&query=avg:app.error.rate{env:production}")
+          
+          if (( $(echo "$ERROR_RATE > 5" | bc -l) )); then
+            echo "Error rate too high after increasing to ${{ matrix.percentage }}%: $ERROR_RATE%"
+            exit 1
+          fi
+
+  # Blue-Green Deployment
+  deploy-blue-green:
+    name: Blue-Green Deployment
+    runs-on: ubuntu-latest
+    needs: [pre-deployment]
+    if: |
+      github.event.inputs.strategy == 'blue-green' && 
+      needs.pre-deployment.outputs.deploy-production == 'true'
+    environment:
+      name: production
+      url: https://example.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name production-cluster --region ${{ env.AWS_REGION }}
+
+      - name: Deploy to green environment
+        run: |
+          helm upgrade --install app-green ./helm/chart \
+            --namespace production \
+            --create-namespace \
+            --set image.tag=${{ needs.pre-deployment.outputs.image-tag }} \
+            --set environment=production-green \
+            --set service.selector=green \
+            --wait \
+            --timeout 10m
+
+      - name: Run smoke tests on green
+        run: |
+          GREEN_URL=$(kubectl get svc app-green -n production -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          ./scripts/smoke-tests.sh https://$GREEN_URL
+
+      - name: Switch traffic to green
+        run: |
+          kubectl patch svc app -n production -p '{"spec":{"selector":{"version":"green"}}}'
+
+      - name: Monitor green deployment
+        run: |
+          sleep 300  # Wait 5 minutes
+          
+          ERROR_RATE=$(curl -s -H "Authorization: Bearer ${{ secrets.DATADOG_API_KEY }}" \
+            "https://api.datadoghq.com/api/v1/query?from=-5m&to=now&query=avg:app.error.rate{env:production,version:green}")
+          
+          if (( $(echo "$ERROR_RATE > 5" | bc -l) )); then
+            echo "Error rate too high on green: $ERROR_RATE%"
+            kubectl patch svc app -n production -p '{"spec":{"selector":{"version":"blue"}}}'
+            exit 1
+          fi
+
+      - name: Cleanup blue deployment
+        if: success()
+        run: |
+          helm uninstall app-blue -n production || true
+
+  # Post-deployment tasks
+  post-deployment:
+    name: Post-deployment Tasks
+    runs-on: ubuntu-latest
+    needs: [progressive-rollout, deploy-blue-green]
+    if: |
+      always() && 
+      (needs.progressive-rollout.result == 'success' || needs.deploy-blue-green.result == 'success')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update deployment tracking
+        run: |
+          curl -X POST https://api.newrelic.com/v2/applications/${{ secrets.NEW_RELIC_APP_ID }}/deployments.json \
+            -H "X-Api-Key: ${{ secrets.NEW_RELIC_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "deployment": {
+                "revision": "${{ needs.pre-deployment.outputs.image-tag }}",
+                "changelog": "Automated deployment from GitHub Actions",
+                "user": "${{ github.actor }}"
+              }
+            }'
+
+      - name: Create Jira deployment
+        run: |
+          curl -X POST https://your-domain.atlassian.net/rest/deployments/1.0/bulk \
+            -H "Authorization: Bearer ${{ secrets.JIRA_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "deployments": [{
+                "deploymentSequenceNumber": ${{ github.run_number }},
+                "updateSequenceNumber": ${{ github.run_id }},
+                "displayName": "Production Deployment",
+                "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                "description": "Automated deployment to production",
+                "lastUpdated": "'$(date -u +%Y-%m-%dT%H:%M:%S.000Z)'",
+                "state": "successful",
+                "pipeline": {
+                  "id": "github-actions",
+                  "displayName": "GitHub Actions",
+                  "url": "${{ github.server_url }}/${{ github.repository }}/actions"
+                },
+                "environment": {
+                  "id": "production",
+                  "displayName": "Production",
+                  "type": "production"
+                },
+                "associations": [{
+                  "associationType": "issueKeys",
+                  "values": ["PROJ-123", "PROJ-456"]
+                }]
+              }]
+            }'
+
+      - name: Send deployment notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: |
+            Production deployment completed successfully!
+            Version: ${{ needs.pre-deployment.outputs.image-tag }}
+            Strategy: ${{ github.event.inputs.strategy || 'canary' }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Trigger synthetic monitoring
+        run: |
+          curl -X POST https://api.datadoghq.com/api/v1/synthetics/tests/trigger/ci \
+            -H "Content-Type: application/json" \
+            -H "DD-API-KEY: ${{ secrets.DATADOG_API_KEY }}" \
+            -H "DD-APPLICATION-KEY: ${{ secrets.DATADOG_APP_KEY }}" \
+            -d '{
+              "tests": [{
+                "public_id": "abc-123-def",
+                "allowInsecureCertificates": false,
+                "basicAuth": {"username": "", "password": ""},
+                "body": "",
+                "bodyType": "text/plain",
+                "cookies": "",
+                "deviceIds": ["laptop_large"],
+                "followRedirects": true,
+                "headers": {},
+                "locations": ["aws:us-east-1"],
+                "retry": {"count": 0, "interval": 300},
+                "startUrl": "https://example.com",
+                "variables": {}
+              }]
+            }'

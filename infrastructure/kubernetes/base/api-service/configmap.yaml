@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  # Application configuration
+  application.yaml: |
+    server:
+      port: 8080
+      gracefulShutdownTimeout: 30s
+    
+    logging:
+      level: INFO
+      format: json
+    
+    metrics:
+      enabled: true
+      port: 9090
+      path: /metrics
+    
+    cache:
+      type: redis
+      ttl: 3600
+    
+    rateLimit:
+      enabled: true
+      requestsPerMinute: 1000
+      burstSize: 100
+    
+    cors:
+      enabled: true
+      allowedOrigins:
+        - "*"
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allowedHeaders:
+        - Authorization
+        - Content-Type
+        - X-Request-ID
+    
+    health:
+      liveness:
+        path: /health/live
+      readiness:
+        path: /health/ready
+        includeChecks:
+          - database
+          - cache
+          - external-api

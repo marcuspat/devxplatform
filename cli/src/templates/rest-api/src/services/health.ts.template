@@ -1,0 +1,87 @@
+{{#if features.database}}
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export const checkDatabaseHealth = async () => {
+  try {
+    const startTime = Date.now();
+    await prisma.$queryRaw`SELECT 1`;
+    const responseTime = Date.now() - startTime;
+    
+    return {
+      status: 'healthy',
+      responseTime: `${responseTime}ms`,
+      timestamp: new Date().toISOString(),
+    };
+  } catch (error) {
+    return {
+      status: 'unhealthy',
+      error: error instanceof Error ? error.message : 'Unknown database error',
+      timestamp: new Date().toISOString(),
+    };
+  }
+};
+{{/if}}
+
+{{#if features.redis}}
+import { createClient } from 'redis';
+import { config } from '../config/index.js';
+
+let redisClient: ReturnType<typeof createClient> | null = null;
+
+const getRedisClient = () => {
+  if (!redisClient && config.redis.url) {
+    redisClient = createClient({
+      url: config.redis.url,
+    });
+  }
+  return redisClient;
+};
+
+export const checkRedisHealth = async () => {
+  try {
+    const client = getRedisClient();
+    if (!client) {
+      return {
+        status: 'not_configured',
+        message: 'Redis not configured',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (!client.isOpen) {
+      await client.connect();
+    }
+
+    const startTime = Date.now();
+    await client.ping();
+    const responseTime = Date.now() - startTime;
+    
+    return {
+      status: 'healthy',
+      responseTime: `${responseTime}ms`,
+      timestamp: new Date().toISOString(),
+    };
+  } catch (error) {
+    return {
+      status: 'unhealthy',
+      error: error instanceof Error ? error.message : 'Unknown Redis error',
+      timestamp: new Date().toISOString(),
+    };
+  }
+};
+{{/if}}
+
+{{#unless features.database}}
+{{#unless features.redis}}
+// Health service with no external dependencies
+export const checkServiceHealth = async () => {
+  return {
+    status: 'healthy',
+    message: 'Service is running',
+    timestamp: new Date().toISOString(),
+  };
+};
+{{/unless}}
+{{/unless}}

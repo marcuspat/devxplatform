@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-service
+spec:
+  replicas: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0  # Zero downtime
+  template:
+    metadata:
+      annotations:
+        # Force pod restart on config change
+        configHash: "${CONFIG_HASH}"
+    spec:
+      priorityClassName: high-priority
+      terminationGracePeriodSeconds: 60  # Graceful shutdown
+      containers:
+      - name: api
+        resources:
+          requests:
+            memory: "512Mi"  # Production resources
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "2000m"
+        env:
+        - name: GOMAXPROCS
+          value: "2"
+        - name: JAVA_OPTS
+          value: "-Xms512m -Xmx1g -XX:+UseG1GC"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: http
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 60  # 5 minutes for prod startup
+      nodeSelector:
+        node-role.kubernetes.io/worker: "true"
+        workload-type: "api"
+      tolerations:
+      - key: "workload-type"
+        operator: "Equal"
+        value: "api"
+        effect: "NoSchedule"

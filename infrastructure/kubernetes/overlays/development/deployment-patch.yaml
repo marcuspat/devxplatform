@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-service
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: api
+        resources:
+          requests:
+            memory: "128Mi"  # Lower resources for dev
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        env:
+        - name: ENABLE_PROFILING
+          value: "true"
+        - name: DEBUG_MODE
+          value: "true"
+        livenessProbe:
+          initialDelaySeconds: 10 # Faster startup for dev
+        readinessProbe:
+          initialDelaySeconds: 5

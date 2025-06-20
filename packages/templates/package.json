@@ -1,0 +1,55 @@
+{
+  "name": "@devex/templates",
+  "version": "0.1.0",
+  "description": "Template system for DevEx platform code generation",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./service": {
+      "types": "./dist/service/index.d.ts",
+      "import": "./dist/service/index.js"
+    },
+    "./api": {
+      "types": "./dist/api/index.d.ts",
+      "import": "./dist/api/index.js"
+    },
+    "./frontend": {
+      "types": "./dist/frontend/index.d.ts",
+      "import": "./dist/frontend/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rimraf dist *.tsbuildinfo",
+    "test": "vitest",
+    "test:unit": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@devex/platform-core": "workspace:*",
+    "ejs": "^3.1.9",
+    "handlebars": "^4.7.8",
+    "js-yaml": "^4.1.0",
+    "lodash": "^4.17.21",
+    "pluralize": "^8.0.0",
+    "change-case": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/ejs": "^3.1.5",
+    "@types/lodash": "^4.14.202",
+    "@types/node": "^20.11.0",
+    "@types/pluralize": "^0.0.33",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

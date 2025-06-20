@@ -1,0 +1,51 @@
+import { jest } from '@jest/globals';
+
+// Set test environment
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-purposes-only-make-it-long-enough';
+process.env.PORT = '0'; // Use random port for tests
+
+{{#if features.database}}
+// Mock database for tests
+jest.mock('@prisma/client', () => ({
+  PrismaClient: jest.fn().mockImplementation(() => ({
+    $connect: jest.fn(),
+    $disconnect: jest.fn(),
+    $queryRaw: jest.fn().mockResolvedValue([{ '1': 1 }]),
+  })),
+}));
+{{/if}}
+
+{{#if features.redis}}
+// Mock Redis for tests
+jest.mock('redis', () => ({
+  createClient: jest.fn(() => ({
+    connect: jest.fn(),
+    disconnect: jest.fn(),
+    ping: jest.fn().mockResolvedValue('PONG'),
+    isOpen: true,
+  })),
+}));
+{{/if}}
+
+// Increase timeout for integration tests
+jest.setTimeout(30000);
+
+// Global test setup
+beforeAll(async () => {
+  // Setup test database or other resources
+});
+
+afterAll(async () => {
+  // Cleanup test resources
+});
+
+// Per-test setup
+beforeEach(() => {
+  // Reset mocks
+  jest.clearAllMocks();
+});
+
+afterEach(() => {
+  // Cleanup after each test
+});
