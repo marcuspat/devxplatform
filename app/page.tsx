@@ -36,6 +36,7 @@ export default function Home() {
   const [apiKey, setApiKey] = useState<string>('')
   const [showApiKeyInput, setShowApiKeyInput] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [downloadFormat, setDownloadFormat] = useState<string>('text')
 
   // Fetch templates from backend
   useEffect(() => {
@@ -236,9 +237,34 @@ export default function Home() {
   const downloadService = async () => {
     if (!generationResult) return
 
-    if (generationResult.generation.download_url === '#') {
-      // Create a mock zip file for demo
-      const content = `# ${generationResult.project.name}
+    try {
+      // Try to download from the new multi-format endpoint
+      const downloadUrl = `/api/generate/download/${generationResult.generation.id}/${downloadFormat}`
+      const response = await fetch(downloadUrl)
+      
+      if (response.ok) {
+        // Get filename from Content-Disposition header
+        const contentDisposition = response.headers.get('Content-Disposition')
+        let filename = `${generationResult.project.slug}.${downloadFormat === 'text' ? 'txt' : downloadFormat}`
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+          if (filenameMatch) {
+            filename = filenameMatch[1]
+          }
+        }
+        
+        // Download the file
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        a.click()
+        URL.revokeObjectURL(url)
+      } else {
+        // Fallback to old method if new endpoint fails
+        const content = `# ${generationResult.project.name}
 
 Generated with DevX Platform
 
@@ -267,16 +293,17 @@ kubectl apply -f k8s/
 
 Generated on ${new Date().toISOString()}
 `
-      const blob = new Blob([content], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${generationResult.project.slug}.txt`
-      a.click()
-      URL.revokeObjectURL(url)
-    } else {
-      // Download from actual backend
-      window.open(generationResult.generation.download_url, '_blank')
+        const blob = new Blob([content], { type: 'text/plain' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${generationResult.project.slug}.txt`
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+    } catch (error) {
+      console.error('Download failed:', error)
+      setError('Failed to download service. Please try again.')
     }
   }
 
@@ -348,7 +375,7 @@ Generated on ${new Date().toISOString()}
         {/* Category Filter */}
         <div className="mb-8">
           <div className="flex flex-wrap gap-2 justify-center">
-            {['all', 'backend', 'frontend', 'devops', 'ai-ml', 'platform-engineering'].map((category) => (
+            {['all', 'backend', 'frontend', 'devops', 'ai-ml', 'agentics', 'platform-engineering'].map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
@@ -360,6 +387,7 @@ Generated on ${new Date().toISOString()}
               >
                 {category === 'all' ? 'All Templates' : 
                  category === 'ai-ml' ? 'AI/ML' :
+                 category === 'agentics' ? 'Agentics' :
                  category === 'platform-engineering' ? 'Platform Engineering' :
                  category.charAt(0).toUpperCase() + category.slice(1)}
                 <span className="ml-2 text-xs opacity-75">
@@ -375,6 +403,7 @@ Generated on ${new Date().toISOString()}
           <h2 className="text-2xl font-bold text-white mb-6">
             {selectedCategory === 'all' ? 'All Templates' : 
              selectedCategory === 'ai-ml' ? 'AI/ML Templates' :
+             selectedCategory === 'agentics' ? 'Agentics Templates' :
              selectedCategory === 'platform-engineering' ? 'Platform Engineering Templates' :
              `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Templates`}
           </h2>
@@ -459,23 +488,55 @@ Generated on ${new Date().toISOString()}
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <button
-                onClick={downloadService}
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                📥 Download Service
-              </button>
-              <button
-                onClick={() => {
-                  setGenerationResult(null)
-                  setServiceName('')
-                  setSelectedTemplate(null)
-                }}
-                className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                🔄 Generate Another
-              </button>
+            <div className="space-y-4">
+              {/* Download Format Selector */}
+              <div>
+                <h4 className="text-white font-medium mb-2">Download Format:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {['text', 'json', 'yaml', 'hcl', 'py'].map((format) => (
+                    <button
+                      key={format}
+                      onClick={() => setDownloadFormat(format)}
+                      className={`px-3 py-1 rounded text-sm font-medium transition-all ${
+                        downloadFormat === format
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                    >
+                      {format.toUpperCase()}
+                      {format === 'text' && ' (TXT)'}
+                      {format === 'hcl' && ' (Terraform)'}
+                      {format === 'py' && ' (Python)'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-gray-400 text-xs mt-1">
+                  {downloadFormat === 'text' && 'All files as text archive with instructions'}
+                  {downloadFormat === 'json' && 'Structured JSON format with metadata'}
+                  {downloadFormat === 'yaml' && 'YAML configuration files combined'}
+                  {downloadFormat === 'hcl' && 'Terraform .tf files for infrastructure'}
+                  {downloadFormat === 'py' && 'Python files for ML/AI templates'}
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={downloadService}
+                  className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  📥 Download as {downloadFormat.toUpperCase()}
+                </button>
+                <button
+                  onClick={() => {
+                    setGenerationResult(null)
+                    setServiceName('')
+                    setSelectedTemplate(null)
+                  }}
+                  className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  🔄 Generate Another
+                </button>
+              </div>
             </div>
           </div>
         )}

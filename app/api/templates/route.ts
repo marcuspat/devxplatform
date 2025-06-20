@@ -219,6 +219,17 @@ const mockTemplates = [
     rating: 4.7
   },
   {
+    id: '43',
+    slug: 'terraform-azure',
+    name: 'Terraform Azure Infrastructure',
+    technology: 'Terraform',
+    description: 'Azure infrastructure with AKS, Azure SQL, and virtual networks',
+    features: ['AKS Cluster', 'Azure SQL', 'Virtual Networks', 'Key Vault', 'Application Gateway', 'Azure Monitor'],
+    category: 'devops',
+    downloads: 1650,
+    rating: 4.7
+  },
+  {
     id: '20',
     slug: 'pulumi-typescript',
     name: 'Pulumi TypeScript IaC',
@@ -474,6 +485,140 @@ const mockTemplates = [
     category: 'platform-engineering',
     downloads: 670,
     rating: 4.4
+  },
+
+  // AI Agent Templates (Agentics)
+  {
+    id: '44',
+    slug: 'autogen-multi-agent',
+    name: 'AutoGen Multi-Agent System',
+    technology: 'AutoGen',
+    description: 'Multi-agent conversation framework with customizable roles and workflows',
+    features: ['Group Chat', 'Role-based Agents', 'Code Execution', 'Human Feedback', 'Tool Integration', 'Conversation Patterns'],
+    category: 'agentics',
+    downloads: 2100,
+    rating: 4.8
+  },
+  {
+    id: '45',
+    slug: 'langchain-agent-executor',
+    name: 'LangChain Agent Executor',
+    technology: 'LangChain',
+    description: 'Intelligent agent with tool use, memory, and reasoning capabilities',
+    features: ['Tool Calling', 'Memory Management', 'Chain-of-Thought', 'Document QA', 'API Integration', 'Streaming'],
+    category: 'agentics',
+    downloads: 3200,
+    rating: 4.9
+  },
+  {
+    id: '46',
+    slug: 'crewai-workforce',
+    name: 'CrewAI Agent Workforce',
+    technology: 'CrewAI',
+    description: 'Collaborative AI agents working together on complex tasks',
+    features: ['Role-based Crews', 'Task Delegation', 'Collaborative Planning', 'Process Orchestration', 'Tool Sharing', 'Result Synthesis'],
+    category: 'agentics',
+    downloads: 1850,
+    rating: 4.7
+  },
+  {
+    id: '47',
+    slug: 'superagi-autonomous',
+    name: 'SuperAGI Autonomous Agent',
+    technology: 'SuperAGI',
+    description: 'Autonomous AI agent platform with goal-oriented task execution',
+    features: ['Goal Planning', 'Resource Management', 'Performance Monitoring', 'Tool Marketplace', 'Agent Orchestration', 'Human Oversight'],
+    category: 'agentics',
+    downloads: 1420,
+    rating: 4.6
+  },
+  {
+    id: '48',
+    slug: 'semantic-kernel-agent',
+    name: 'Semantic Kernel Agent',
+    technology: 'Semantic Kernel',
+    description: 'Microsoft Semantic Kernel-based agent with enterprise integration',
+    features: ['Plugin System', 'Planner Integration', 'Memory Stores', 'Enterprise Auth', 'Azure Integration', 'Prompt Engineering'],
+    category: 'agentics',
+    downloads: 1680,
+    rating: 4.5
+  },
+  {
+    id: '49',
+    slug: 'llama-index-agent',
+    name: 'LlamaIndex RAG Agent',
+    technology: 'LlamaIndex',
+    description: 'RAG-powered agent with advanced document understanding and querying',
+    features: ['Multi-Document RAG', 'Query Engine', 'Index Management', 'Retrieval Augmentation', 'Chat Engine', 'Sub-Question Queries'],
+    category: 'agentics',
+    downloads: 2450,
+    rating: 4.8
+  },
+  {
+    id: '50',
+    slug: 'haystack-agent-pipeline',
+    name: 'Haystack Agent Pipeline',
+    technology: 'Haystack',
+    description: 'Production-ready agent pipeline with document processing and QA',
+    features: ['Pipeline Architecture', 'Document Processing', 'Answer Extraction', 'Evaluation Framework', 'REST API', 'Scaling'],
+    category: 'agentics',
+    downloads: 1120,
+    rating: 4.6
+  },
+  {
+    id: '51',
+    slug: 'react-agent-pattern',
+    name: 'ReAct Agent Pattern',
+    technology: 'Python + OpenAI',
+    description: 'Reasoning and Acting agent pattern implementation with tool use',
+    features: ['Reasoning Loops', 'Action Planning', 'Tool Integration', 'Observation Handling', 'Error Recovery', 'Trace Logging'],
+    category: 'agentics',
+    downloads: 1890,
+    rating: 4.7
+  },
+  {
+    id: '52',
+    slug: 'openai-assistants-api',
+    name: 'OpenAI Assistants API',
+    technology: 'OpenAI API',
+    description: 'OpenAI Assistants API with file handling and function calling',
+    features: ['Code Interpreter', 'File Search', 'Function Calling', 'Thread Management', 'Streaming', 'Vector Stores'],
+    category: 'agentics',
+    downloads: 3850,
+    rating: 4.9
+  },
+  {
+    id: '53',
+    slug: 'agent-swarm-coordination',
+    name: 'Agent Swarm Coordination',
+    technology: 'Multi-Framework',
+    description: 'Coordinated swarm of specialized agents for complex problem solving',
+    features: ['Swarm Intelligence', 'Task Distribution', 'Agent Communication', 'Load Balancing', 'Consensus Mechanisms', 'Emergent Behavior'],
+    category: 'agentics',
+    downloads: 1340,
+    rating: 4.5
+  },
+  {
+    id: '54',
+    slug: 'cognitive-architecture-agent',
+    name: 'Cognitive Architecture Agent',
+    technology: 'ACT-R/SOAR',
+    description: 'Cognitive architecture-based agent with human-like reasoning patterns',
+    features: ['Cognitive Modeling', 'Working Memory', 'Procedural Knowledge', 'Learning Mechanisms', 'Goal Management', 'Symbolic Reasoning'],
+    category: 'agentics',
+    downloads: 890,
+    rating: 4.4
+  },
+  {
+    id: '55',
+    slug: 'multi-modal-agent',
+    name: 'Multi-Modal AI Agent',
+    technology: 'OpenAI GPT-4V',
+    description: 'Multi-modal agent capable of processing text, images, and audio',
+    features: ['Vision Processing', 'Audio Analysis', 'Text Understanding', 'Cross-Modal Reasoning', 'Tool Integration', 'Output Generation'],
+    category: 'agentics',
+    downloads: 2760,
+    rating: 4.8
   }
 ]
 

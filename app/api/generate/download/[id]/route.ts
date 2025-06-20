@@ -3,13 +3,14 @@ import { NextRequest, NextResponse } from 'next/server'
 // Helper to determine template type from ID
 function getTemplateType(generationId: string): string {
   // In a real app, you'd look this up from the generation record
-  // For now, we'll use a simple mapping
+  // For now, we'll use a simple mapping based on template ID
   const id = parseInt(generationId.split('-')[0]) || 1
   
   if (id <= 6) return 'backend'
   if (id <= 12) return 'devops-infra'
   if (id <= 18) return 'ai-ml'
   if (id <= 24) return 'devops-security'
+  if (id === 43) return 'terraform-azure' // Azure template
   return 'platform-engineering'
 }
 
@@ -30,6 +31,14 @@ function generateServiceCode(generationId: string, templateType: string): { [key
       files['variables.tf'] = generateTerraformVariables()
       files['outputs.tf'] = generateTerraformOutputs()
       files['README.md'] = generateReadme('terraform', generationId)
+      break
+      
+    case 'terraform-azure':
+      files['main.tf'] = generateAzureTerraformCode(generationId)
+      files['variables.tf'] = generateAzureTerraformVariables()
+      files['outputs.tf'] = generateAzureTerraformOutputs()
+      files['terraform.tfvars.example'] = generateAzureTerraformVars()
+      files['README.md'] = generateReadme('azure', generationId)
       break
       
     case 'ai-ml':
@@ -144,6 +153,519 @@ const server = app.listen(PORT, () => {
 });
 
 module.exports = app;
+`
+}
+
+function generateAzureTerraformCode(generationId: string): string {
+  return `# Generated Azure Infrastructure ${generationId}
+# Created with DevX Platform
+
+terraform {
+  required_version = ">= 1.0"
+  
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
+    }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 2.0"
+    }
+  }
+}
+
+# Configure the Azure Provider
+provider "azurerm" {
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy    = true
+      recover_soft_deleted_key_vaults = true
+    }
+  }
+}
+
+# Data sources
+data "azurerm_client_config" "current" {}
+
+# Resource Group
+resource "azurerm_resource_group" "main" {
+  name     = "rg-devx-${generationId}"
+  location = var.location
+
+  tags = {
+    Environment = var.environment
+    GeneratedBy = "DevX Platform"
+    GeneratedAt = "${new Date().toISOString()}"
+  }
+}
+
+# Virtual Network
+resource "azurerm_virtual_network" "main" {
+  name                = "vnet-devx-${generationId}"
+  address_space       = [var.vnet_cidr]
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  tags = {
+    Environment = var.environment
+    GeneratedBy = "DevX Platform"
+  }
+}
+
+# Subnets
+resource "azurerm_subnet" "aks" {
+  name                 = "subnet-aks"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.aks_subnet_cidr]
+}
+
+resource "azurerm_subnet" "database" {
+  name                 = "subnet-database"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.db_subnet_cidr]
+
+  delegation {
+    name = "fs"
+    service_delegation {
+      name = "Microsoft.DBforPostgreSQL/flexibleServers"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action",
+      ]
+    }
+  }
+}
+
+resource "azurerm_subnet" "gateway" {
+  name                 = "subnet-gateway"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.gateway_subnet_cidr]
+}
+
+# Network Security Groups
+resource "azurerm_network_security_group" "aks" {
+  name                = "nsg-aks-${generationId}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  security_rule {
+    name                       = "AllowHTTPS"
+    priority                   = 1001
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  tags = {
+    Environment = var.environment
+    GeneratedBy = "DevX Platform"
+  }
+}
+
+# Associate NSG to AKS subnet
+resource "azurerm_subnet_network_security_group_association" "aks" {
+  subnet_id                 = azurerm_subnet.aks.id
+  network_security_group_id = azurerm_network_security_group.aks.id
+}
+
+# Log Analytics Workspace
+resource "azurerm_log_analytics_workspace" "main" {
+  name                = "log-devx-${generationId}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = "PerGB2018"
+  retention_in_days   = var.log_retention_days
+
+  tags = {
+    Environment = var.environment
+    GeneratedBy = "DevX Platform"
+  }
+}
+
+# Azure Kubernetes Service
+resource "azurerm_kubernetes_cluster" "main" {
+  name                = "aks-devx-${generationId}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  dns_prefix          = "aks-devx-${generationId}"
+  kubernetes_version  = var.kubernetes_version
+
+  default_node_pool {
+    name                = "default"
+    node_count          = var.node_count
+    vm_size             = var.vm_size
+    vnet_subnet_id      = azurerm_subnet.aks.id
+    type                = "VirtualMachineScaleSets"
+    enable_auto_scaling = true
+    min_count           = var.min_node_count
+    max_count           = var.max_node_count
+
+    upgrade_settings {
+      max_surge = "10%"
+    }
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  oms_agent {
+    log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  }
+
+  network_profile {
+    network_plugin    = "azure"
+    load_balancer_sku = "standard"
+  }
+
+  tags = {
+    Environment = var.environment
+    GeneratedBy = "DevX Platform"
+  }
+}
+
+# Key Vault
+resource "azurerm_key_vault" "main" {
+  name                        = "kv-devx-${generationId.slice(0, 8)}"
+  location                    = azurerm_resource_group.main.location
+  resource_group_name         = azurerm_resource_group.main.name
+  enabled_for_disk_encryption = true
+  tenant_id                   = data.azurerm_client_config.current.tenant_id
+  soft_delete_retention_days  = 7
+  purge_protection_enabled    = false
+  sku_name                    = "standard"
+
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = data.azurerm_client_config.current.object_id
+
+    key_permissions = [
+      "Get", "List", "Update", "Create", "Import", "Delete", "Recover", "Backup", "Restore",
+    ]
+
+    secret_permissions = [
+      "Get", "List", "Set", "Delete", "Recover", "Backup", "Restore",
+    ]
+
+    storage_permissions = [
+      "Get", "List", "Update", "Delete",
+    ]
+  }
+
+  # Access policy for AKS
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
+
+    secret_permissions = [
+      "Get", "List",
+    ]
+  }
+
+  tags = {
+    Environment = var.environment
+    GeneratedBy = "DevX Platform"
+  }
+}
+
+# PostgreSQL Flexible Server
+resource "azurerm_postgresql_flexible_server" "main" {
+  name                   = "psql-devx-${generationId}"
+  resource_group_name    = azurerm_resource_group.main.name
+  location               = azurerm_resource_group.main.location
+  version                = var.postgresql_version
+  delegated_subnet_id    = azurerm_subnet.database.id
+  administrator_login    = var.db_admin_username
+  administrator_password = var.db_admin_password
+  zone                   = "1"
+
+  storage_mb = var.db_storage_mb
+
+  sku_name   = var.db_sku_name
+  backup_retention_days = 7
+
+  tags = {
+    Environment = var.environment
+    GeneratedBy = "DevX Platform"
+  }
+}
+
+# Application Gateway
+resource "azurerm_public_ip" "gateway" {
+  name                = "pip-gateway-${generationId}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  allocation_method   = "Static"
+  sku                 = "Standard"
+
+  tags = {
+    Environment = var.environment
+    GeneratedBy = "DevX Platform"
+  }
+}
+
+resource "azurerm_application_gateway" "main" {
+  name                = "agw-devx-${generationId}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  sku {
+    name     = "Standard_v2"
+    tier     = "Standard_v2"
+    capacity = 2
+  }
+
+  gateway_ip_configuration {
+    name      = "gateway-ip-configuration"
+    subnet_id = azurerm_subnet.gateway.id
+  }
+
+  frontend_port {
+    name = "frontend-port-80"
+    port = 80
+  }
+
+  frontend_port {
+    name = "frontend-port-443"
+    port = 443
+  }
+
+  frontend_ip_configuration {
+    name                 = "frontend-ip-configuration"
+    public_ip_address_id = azurerm_public_ip.gateway.id
+  }
+
+  backend_address_pool {
+    name = "backend-pool"
+  }
+
+  backend_http_settings {
+    name                  = "backend-http-settings"
+    cookie_based_affinity = "Disabled"
+    path                  = "/path1/"
+    port                  = 80
+    protocol              = "Http"
+    request_timeout       = 60
+  }
+
+  http_listener {
+    name                           = "http-listener"
+    frontend_ip_configuration_name = "frontend-ip-configuration"
+    frontend_port_name             = "frontend-port-80"
+    protocol                       = "Http"
+  }
+
+  request_routing_rule {
+    name                       = "routing-rule"
+    rule_type                  = "Basic"
+    http_listener_name         = "http-listener"
+    backend_address_pool_name  = "backend-pool"
+    backend_http_settings_name = "backend-http-settings"
+    priority                   = 9
+  }
+
+  tags = {
+    Environment = var.environment
+    GeneratedBy = "DevX Platform"
+  }
+}
+`
+}
+
+function generateAzureTerraformVariables(): string {
+  return `variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = "production"
+}
+
+variable "location" {
+  description = "Azure region"
+  type        = string
+  default     = "East US"
+}
+
+variable "vnet_cidr" {
+  description = "CIDR block for VNet"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "aks_subnet_cidr" {
+  description = "CIDR block for AKS subnet"
+  type        = string
+  default     = "10.0.1.0/24"
+}
+
+variable "db_subnet_cidr" {
+  description = "CIDR block for database subnet"
+  type        = string
+  default     = "10.0.2.0/24"
+}
+
+variable "gateway_subnet_cidr" {
+  description = "CIDR block for application gateway subnet"
+  type        = string
+  default     = "10.0.3.0/24"
+}
+
+variable "kubernetes_version" {
+  description = "Kubernetes version for AKS"
+  type        = string
+  default     = "1.28.3"
+}
+
+variable "vm_size" {
+  description = "VM size for AKS nodes"
+  type        = string
+  default     = "Standard_D2s_v3"
+}
+
+variable "node_count" {
+  description = "Initial number of nodes"
+  type        = number
+  default     = 3
+}
+
+variable "min_node_count" {
+  description = "Minimum number of nodes"
+  type        = number
+  default     = 1
+}
+
+variable "max_node_count" {
+  description = "Maximum number of nodes"
+  type        = number
+  default     = 10
+}
+
+variable "postgresql_version" {
+  description = "PostgreSQL version"
+  type        = string
+  default     = "13"
+}
+
+variable "db_storage_mb" {
+  description = "Database storage in MB"
+  type        = number
+  default     = 32768
+}
+
+variable "db_sku_name" {
+  description = "Database SKU name"
+  type        = string
+  default     = "GP_Standard_D2s_v3"
+}
+
+variable "db_admin_username" {
+  description = "Database administrator username"
+  type        = string
+  default     = "azureuser"
+}
+
+variable "db_admin_password" {
+  description = "Database administrator password"
+  type        = string
+  sensitive   = true
+}
+
+variable "log_retention_days" {
+  description = "Log Analytics retention in days"
+  type        = number
+  default     = 30
+}
+`
+}
+
+function generateAzureTerraformOutputs(): string {
+  return `output "resource_group_name" {
+  description = "Name of the resource group"
+  value       = azurerm_resource_group.main.name
+}
+
+output "aks_cluster_name" {
+  description = "Name of the AKS cluster"
+  value       = azurerm_kubernetes_cluster.main.name
+}
+
+output "aks_cluster_fqdn" {
+  description = "FQDN of the AKS cluster"
+  value       = azurerm_kubernetes_cluster.main.fqdn
+}
+
+output "key_vault_name" {
+  description = "Name of the Key Vault"
+  value       = azurerm_key_vault.main.name
+}
+
+output "key_vault_uri" {
+  description = "URI of the Key Vault"
+  value       = azurerm_key_vault.main.vault_uri
+}
+
+output "postgresql_server_name" {
+  description = "Name of the PostgreSQL server"
+  value       = azurerm_postgresql_flexible_server.main.name
+}
+
+output "postgresql_server_fqdn" {
+  description = "FQDN of the PostgreSQL server"
+  value       = azurerm_postgresql_flexible_server.main.fqdn
+}
+
+output "application_gateway_public_ip" {
+  description = "Public IP of the Application Gateway"
+  value       = azurerm_public_ip.gateway.ip_address
+}
+
+output "log_analytics_workspace_id" {
+  description = "ID of the Log Analytics workspace"
+  value       = azurerm_log_analytics_workspace.main.id
+}
+
+output "vnet_name" {
+  description = "Name of the virtual network"
+  value       = azurerm_virtual_network.main.name
+}
+`
+}
+
+function generateAzureTerraformVars(): string {
+  return `# Example Terraform variables file for Azure infrastructure
+# Copy this file to terraform.tfvars and update with your values
+
+environment = "production"
+location    = "East US"
+
+# Network Configuration
+vnet_cidr           = "10.0.0.0/16"
+aks_subnet_cidr     = "10.0.1.0/24"
+db_subnet_cidr      = "10.0.2.0/24"
+gateway_subnet_cidr = "10.0.3.0/24"
+
+# AKS Configuration
+kubernetes_version = "1.28.3"
+vm_size           = "Standard_D2s_v3"
+node_count        = 3
+min_node_count    = 1
+max_node_count    = 10
+
+# Database Configuration
+postgresql_version  = "13"
+db_storage_mb      = 32768
+db_sku_name        = "GP_Standard_D2s_v3"
+db_admin_username  = "azureuser"
+db_admin_password  = "YourSecurePassword123!"
+
+# Monitoring
+log_retention_days = 30
 `
 }
 
@@ -1358,6 +1880,54 @@ npm run test:coverage
 - **Availability Zones**: 3
 - **Node Groups**: Auto-scaling 3-10 nodes
 - **Instance Type**: t3.medium (configurable)`,
+
+    azure: `## Azure Infrastructure Components
+
+- ✅ Virtual Network with subnets for AKS, database, and gateway
+- ✅ AKS cluster with auto-scaling node pools
+- ✅ PostgreSQL Flexible Server with private networking
+- ✅ Application Gateway with public IP
+- ✅ Key Vault for secrets management
+- ✅ Log Analytics workspace for monitoring
+- ✅ Network Security Groups with HTTPS rules
+- ✅ Azure Monitor integration
+
+## Deployment
+
+1. Login to Azure:
+   \`\`\`bash
+   az login
+   \`\`\`
+
+2. Initialize Terraform:
+   \`\`\`bash
+   terraform init
+   \`\`\`
+
+3. Create terraform.tfvars:
+   \`\`\`hcl
+   environment = "production"
+   location = "East US"
+   db_admin_password = "YourSecurePassword123!"
+   \`\`\`
+
+4. Plan deployment:
+   \`\`\`bash
+   terraform plan
+   \`\`\`
+
+5. Apply configuration:
+   \`\`\`bash
+   terraform apply
+   \`\`\`
+
+## Architecture
+
+- **Region**: East US (configurable)
+- **VNet CIDR**: 10.0.0.0/16
+- **AKS Nodes**: Auto-scaling 1-10 nodes
+- **VM Size**: Standard_D2s_v3 (configurable)
+- **Database**: PostgreSQL 13 Flexible Server`,
 
     ml: `## ML Pipeline Features
 
