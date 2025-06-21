@@ -2,12 +2,14 @@
 
 > **Production-Ready Microservice Templates with Built-in DevOps Excellence**
 
-Generate enterprise-grade microservices in seconds with comprehensive infrastructure, security, monitoring, and deployment configurations. **Recently upgraded from 0% to 95% production readiness** with complete infrastructure remediation.
+Generate enterprise-grade microservices in seconds with comprehensive infrastructure, security, monitoring, and deployment configurations. **v2.0.0 - Fully remediated from 0% to 95% production readiness** with complete infrastructure transformation.
 
+[![Version](https://img.shields.io/badge/Version-v2.0.0-blue)](https://github.com/marcuspat/devxplatform/releases/tag/v2.0.0)
 [![Production Ready](https://img.shields.io/badge/Production-Ready-brightgreen)](https://github.com/marcuspat/devxplatform)
 [![Infrastructure](https://img.shields.io/badge/Infrastructure-Complete-blue)](https://github.com/marcuspat/devxplatform)
 [![Security](https://img.shields.io/badge/Security-Hardened-orange)](https://github.com/marcuspat/devxplatform)
 [![Templates](https://img.shields.io/badge/Templates-11+-purple)](https://github.com/marcuspat/devxplatform)
+[![Release](https://img.shields.io/github/v/release/marcuspat/devxplatform)](https://github.com/marcuspat/devxplatform/releases)
 
 ## 🚀 Quick Start
 
@@ -128,14 +130,27 @@ your-service/
 | **Terraform** | ✅ 100% | All 8 modules operational |
 | **Testing** | ✅ 90%+ | Comprehensive test coverage |
 
-## 🛠️ Recent Platform Upgrades
+## 🎉 Release Information
 
-### **Major Remediation Completed** (June 2025)
-- **🔒 Security**: Fixed 9 critical vulnerabilities (HTTP Request Smuggling, RCE)
-- **🐍 Python**: Fixed all import errors, 100% templates now functional  
-- **☸️ Kubernetes**: Rebuilt 19/20 failing manifests to 100% valid
-- **🏗️ Terraform**: Reconstructed 8/8 modules from 0% to 100% functional
-- **🧪 Testing**: Enhanced validation and automated testing
+### **Current Version: v2.0.0** (June 21, 2025)
+
+**🚀 Major Platform Transformation - 0% to 95% Production Ready**
+
+This release represents a complete platform overhaul with enterprise-grade capabilities:
+
+- **🔒 Security Hardening**: Fixed 9 critical vulnerabilities, zero CVEs remaining
+- **🐍 Template Fixes**: 100% Python templates functional (FastAPI, Flask, Celery)
+- **☸️ Infrastructure**: Complete Kubernetes & Terraform reconstruction
+- **🐳 Docker**: Maintained 100% build success with security enhancements
+- **📊 Monitoring**: Production-ready observability with Prometheus/Grafana
+- **🛡️ Enterprise**: Multi-cloud deployment, auto-scaling, compliance ready
+
+**📋 Release Links:**
+- **[📝 Full Changelog](CHANGELOG.md)**: Complete v2.0.0 release notes
+- **[🏷️ GitHub Release](https://github.com/marcuspat/devxplatform/releases/tag/v2.0.0)**: Download and release assets
+- **[📊 Production Report](PRODUCTION_READINESS_REPORT.md)**: Detailed readiness assessment
+
+**⬆️ Upgrading from v1.0.0:** See [CHANGELOG.md](CHANGELOG.md#how-to-upgrade) for migration guide
 
 ## 🚀 Deployment Options
 
@@ -153,11 +168,12 @@ your-service/
 
 ## 📚 Documentation
 
-- **[Architecture Guide](ARCHITECTURE.md)**: System design and patterns
-- **[Production Readiness](PRODUCTION_READINESS_REPORT.md)**: Deployment checklist
-- **[Security Analysis](security/SECURITY_ANALYSIS_REPORT.md)**: Security posture
-- **[Docker Guide](DOCKER_FIXES_SUMMARY.md)**: Container best practices
-- **[Terraform Guide](TERRAFORM_RECONSTRUCTION_SUCCESS.md)**: Infrastructure setup
+- **[📝 Changelog](CHANGELOG.md)**: Release notes and version history
+- **[🏗️ Architecture Guide](ARCHITECTURE.md)**: System design and patterns
+- **[📊 Production Readiness](PRODUCTION_READINESS_REPORT.md)**: Deployment checklist
+- **[🛡️ Security Analysis](security/SECURITY_ANALYSIS_REPORT.md)**: Security posture
+- **[🐳 Docker Guide](DOCKER_FIXES_SUMMARY.md)**: Container best practices
+- **[🏗️ Terraform Guide](TERRAFORM_RECONSTRUCTION_SUCCESS.md)**: Infrastructure setup
 
 ## 🛡️ Security Features
 
