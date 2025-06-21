@@ -30,7 +30,7 @@ export function requestLogger(
 
   // Log response
   const originalSend = res.send;
-  res.send = function (data: any) {
+  res.send = function (data: unknown) {
     res.send = originalSend;
     
     const duration = Date.now() - startTime;

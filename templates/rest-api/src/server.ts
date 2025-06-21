@@ -13,7 +13,7 @@ import { config } from './config';
 import { logger } from './utils/logger';
 import path from 'path';
 
-export async function createServer(): Promise<Express> {
+export function createServer(): Express {
   const app = express();
 
   // Security middleware

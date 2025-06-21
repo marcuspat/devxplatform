@@ -15,13 +15,13 @@ import (
 
 // UserHandler handles user-related HTTP requests
 type UserHandler struct {
-	userService *services.UserService
-	jwtService  *middleware.JWTService
+	userService services.UserServiceInterface
+	jwtService  middleware.JWTServiceInterface
 	logger      *zap.Logger
 }
 
 // NewUserHandler creates a new user handler
-func NewUserHandler(userService *services.UserService, jwtService *middleware.JWTService, logger *zap.Logger) *UserHandler {
+func NewUserHandler(userService services.UserServiceInterface, jwtService middleware.JWTServiceInterface, logger *zap.Logger) *UserHandler {
 	return &UserHandler{
 		userService: userService,
 		jwtService:  jwtService,

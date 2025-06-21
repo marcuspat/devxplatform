@@ -22,7 +22,7 @@ interface HealthCheckResult {
 }
 
 // Liveness probe - basic health check
-healthRouter.get('/live', (req: Request, res: Response) => {
+healthRouter.get('/live', (_req: Request, res: Response) => {
   res.status(StatusCodes.OK).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -30,7 +30,7 @@ healthRouter.get('/live', (req: Request, res: Response) => {
 });
 
 // Readiness probe - detailed health check
-healthRouter.get('/ready', async (req: Request, res: Response) => {
+healthRouter.get('/ready', (_req: Request, res: Response) => {
   const startTime = Date.now();
   const checks: Record<string, HealthCheckResult> = {};
   
@@ -84,7 +84,7 @@ healthRouter.get('/ready', async (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     service: 'rest-api',
-    version: process.env.npm_package_version || '1.0.0',
+    version: process.env.npm_package_version ?? '1.0.0',
     environment: config.env,
     checks,
   };
@@ -93,13 +93,13 @@ healthRouter.get('/ready', async (req: Request, res: Response) => {
 });
 
 // Detailed health information
-healthRouter.get('/', async (req: Request, res: Response) => {
+healthRouter.get('/', (_req: Request, res: Response) => {
   const health = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     service: 'rest-api',
-    version: process.env.npm_package_version || '1.0.0',
+    version: process.env.npm_package_version ?? '1.0.0',
     environment: config.env,
     system: {
       platform: os.platform(),
@@ -112,7 +112,7 @@ healthRouter.get('/', async (req: Request, res: Response) => {
       },
       cpu: {
         cores: os.cpus().length,
-        model: os.cpus()[0]?.model,
+        model: os.cpus()[0]?.model ?? 'Unknown',
         loadAverage: os.loadavg(),
       },
     },

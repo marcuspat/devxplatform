@@ -1,0 +1,44 @@
+service:
+  name: "gin-service"
+  version: "1.0.0"
+  environment: "development"
+
+server:
+  port: "8080"
+  read_timeout: 10
+  write_timeout: 10
+  idle_timeout: 120
+
+database:
+  url: "postgres://user:password@localhost:5432/gin_service?sslmode=disable"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 300
+
+redis:
+  url: "localhost:6379"
+  password: ""
+  db: 0
+
+jwt:
+  secret: "your-secret-key-change-in-production"
+  expiration_time: 3600  # 1 hour in seconds
+  issuer: "gin-service"
+
+log:
+  level: "info"
+  format: "json"
+
+cors:
+  allowed_origins: ["*"]
+  allowed_methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+  allowed_headers: ["*"]
+  exposed_headers: ["Content-Length"]
+  allowed_credentials: true
+  max_age: 43200  # 12 hours
+
+rate:
+  enabled: true
+  rps: 100
+  burst: 200
+  window: "1m"

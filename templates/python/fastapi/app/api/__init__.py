@@ -1,6 +1,7 @@
 """
 API router configuration
 """
+
 from fastapi import APIRouter
 
 from .v1 import auth, health, users

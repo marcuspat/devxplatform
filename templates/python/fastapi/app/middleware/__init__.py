@@ -1,6 +1,7 @@
 """
 FastAPI middleware modules
 """
+
 from .logging import LoggingMiddleware
 from .timing import TimingMiddleware
 

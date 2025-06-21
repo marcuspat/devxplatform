@@ -15,6 +15,24 @@ import (
 	"go.uber.org/zap"
 )
 
+// DBInterface defines the methods required for database operations
+type DBInterface interface {
+	Get(dest interface{}, query string, args ...interface{}) error
+	Select(dest interface{}, query string, args ...interface{}) error
+	NamedQuery(query string, arg interface{}) (*sqlx.Rows, error)
+	NamedExec(query string, arg interface{}) (sql.Result, error)
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+	Queryx(query string, args ...interface{}) (*sqlx.Rows, error)
+	QueryRowx(query string, args ...interface{}) *sqlx.Row
+	Beginx() (*sqlx.Tx, error)
+	Health() error
+	Close() error
+	Ping() error
+	Transaction(fn func(*sqlx.Tx) error) error
+}
+
 // DB wraps sqlx.DB with additional functionality
 type DB struct {
 	*sqlx.DB
@@ -114,11 +132,11 @@ func (db *DB) Transaction(fn func(*sqlx.Tx) error) error {
 
 // Paginate represents pagination parameters
 type Paginate struct {
-	Page    int `json:"page" form:"page" binding:"min=1"`
-	Limit   int `json:"limit" form:"limit" binding:"min=1,max=100"`
-	Offset  int `json:"-"`
-	Total   int `json:"total"`
-	Pages   int `json:"pages"`
+	Page    int  `json:"page" form:"page" binding:"min=1"`
+	Limit   int  `json:"limit" form:"limit" binding:"min=1,max=100"`
+	Offset  int  `json:"-"`
+	Total   int  `json:"total"`
+	Pages   int  `json:"pages"`
 	HasNext bool `json:"has_next"`
 	HasPrev bool `json:"has_prev"`
 }

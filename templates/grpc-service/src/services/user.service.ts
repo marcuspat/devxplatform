@@ -68,8 +68,8 @@ export class UserServiceImplementation {
       const request = call.request;
       const page = request.getPage() || 1;
       const pageSize = Math.min(request.getPageSize() || 10, 100);
-      const sortBy = request.getSortBy() || 'created_at';
-      const descending = request.getDescending();
+      const _sortBy = request.getSortBy() || 'created_at';
+      const _descending = request.getDescending();
 
       logger.info(`Listing users - page: ${page}, pageSize: ${pageSize}`);
 
@@ -265,7 +265,7 @@ export class UserServiceImplementation {
     try {
       const request = call.request;
       const userIds = request.getUserIdsList();
-      const includeAll = request.getIncludeAll();
+      const _includeAll = request.getIncludeAll();
 
       logger.info(`Streaming user updates for ${userIds.length} users`);
 

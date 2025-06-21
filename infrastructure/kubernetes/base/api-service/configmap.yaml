@@ -2,11 +2,42 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: api-config
+  labels:
+    app: api-service
 data:
   # Application configuration
+  PORT: "3000"
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  
+  # Health check configuration
+  HEALTH_CHECK_PATH: "/health"
+  HEALTH_CHECK_PORT: "3000"
+  
+  # Metrics configuration
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9090"
+  METRICS_PATH: "/metrics"
+  
+  # Cache configuration
+  CACHE_TYPE: "redis"
+  CACHE_TTL: "3600"
+  
+  # Rate limiting
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS_PER_MINUTE: "1000"
+  RATE_LIMIT_BURST_SIZE: "100"
+  
+  # CORS configuration
+  CORS_ENABLED: "true"
+  CORS_ALLOWED_ORIGINS: "*"
+  CORS_ALLOWED_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+  CORS_ALLOWED_HEADERS: "Authorization,Content-Type,X-Request-ID"
+  
+  # Application configuration YAML (alternative format)
   application.yaml: |
     server:
-      port: 8080
+      port: 3000
       gracefulShutdownTimeout: 30s
     
     logging:
@@ -43,11 +74,6 @@ data:
         - X-Request-ID
     
     health:
-      liveness:
-        path: /health/live
-      readiness:
-        path: /health/ready
-        includeChecks:
-          - database
-          - cache
-          - external-api
+      path: /health
+      checkIntervalSeconds: 30
+      timeout: 5000

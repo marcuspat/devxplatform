@@ -60,3 +60,15 @@ generated/
 .local/
 tmp/
 .vercel
+
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+
+# Terraform provider binaries (large files)
+**/.terraform/providers/
+

@@ -7,7 +7,7 @@ import { gracefulShutdown } from './utils/graceful-shutdown';
 
 async function main() {
   try {
-    const { app, httpServer } = await createServer();
+    const { app: _app, httpServer } = await createServer();
     
     httpServer.listen(config.port, () => {
       logger.info(`GraphQL server is running on port ${config.port} in ${config.env} mode`);

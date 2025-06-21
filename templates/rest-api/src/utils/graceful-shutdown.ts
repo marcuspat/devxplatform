@@ -1,10 +1,11 @@
 import { Server } from 'http';
+import { Socket } from 'net';
 import { logger } from './logger';
 import { config } from '../config';
 
 export function gracefulShutdown(server: Server): void {
   // Track connections
-  const connections = new Set<any>();
+  const connections = new Set<Socket>();
   
   server.on('connection', (connection) => {
     connections.add(connection);
@@ -54,17 +55,17 @@ export function gracefulShutdown(server: Server): void {
   };
   
   // Handle termination signals
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
   
   // Handle uncaught errors
   process.on('uncaughtException', (error) => {
     logger.error('Uncaught Exception:', error);
-    shutdown('uncaughtException');
+    void shutdown('uncaughtException');
   });
   
   process.on('unhandledRejection', (reason, promise) => {
     logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    shutdown('unhandledRejection');
+    void shutdown('unhandledRejection');
   });
 }

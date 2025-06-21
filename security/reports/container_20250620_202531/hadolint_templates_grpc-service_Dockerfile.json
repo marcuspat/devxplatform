@@ -1,0 +1,1 @@
+[{"code":"DL3018","column":1,"file":"/Users/mp/Documents/Code/claude-code/projects/devxplatform/templates/grpc-service/Dockerfile","level":"warning","line":18,"message":"Pin versions in apk add. Instead of `apk add <package>` use `apk add <package>=<version>`"}]

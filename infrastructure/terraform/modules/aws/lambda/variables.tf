@@ -518,3 +518,150 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+# Security Group Configuration
+variable "vpc_id" {
+  description = "VPC ID for the Lambda security group"
+  type        = string
+  default     = null
+}
+
+variable "create_security_group" {
+  description = "Whether to create a security group for Lambda"
+  type        = bool
+  default     = true
+}
+
+variable "security_group_egress_rules" {
+  description = "Map of custom egress rules for Lambda security group"
+  type = map(object({
+    from_port       = number
+    to_port         = number
+    protocol        = string
+    cidr_blocks     = optional(list(string))
+    prefix_list_ids = optional(list(string))
+    description     = string
+  }))
+  default = {}
+}
+
+# CloudWatch Alarms
+variable "enable_cloudwatch_alarms" {
+  description = "Whether to create CloudWatch alarms"
+  type        = bool
+  default     = false
+}
+
+variable "alarm_actions" {
+  description = "List of ARNs to notify when alarm transitions to ALARM state"
+  type        = list(string)
+  default     = []
+}
+
+variable "ok_actions" {
+  description = "List of ARNs to notify when alarm transitions to OK state"
+  type        = list(string)
+  default     = []
+}
+
+# Error Alarm Configuration
+variable "error_alarm_threshold" {
+  description = "Threshold for Lambda error alarm"
+  type        = number
+  default     = 5
+}
+
+variable "error_alarm_evaluation_periods" {
+  description = "Evaluation periods for error alarm"
+  type        = number
+  default     = 2
+}
+
+variable "error_alarm_period" {
+  description = "Period in seconds for error alarm"
+  type        = number
+  default     = 300
+}
+
+# Throttle Alarm Configuration
+variable "throttle_alarm_threshold" {
+  description = "Threshold for Lambda throttle alarm"
+  type        = number
+  default     = 5
+}
+
+variable "throttle_alarm_evaluation_periods" {
+  description = "Evaluation periods for throttle alarm"
+  type        = number
+  default     = 2
+}
+
+variable "throttle_alarm_period" {
+  description = "Period in seconds for throttle alarm"
+  type        = number
+  default     = 300
+}
+
+# Duration Alarm Configuration
+variable "duration_alarm_threshold" {
+  description = "Threshold for Lambda duration alarm in milliseconds"
+  type        = number
+  default     = 3000
+}
+
+variable "duration_alarm_evaluation_periods" {
+  description = "Evaluation periods for duration alarm"
+  type        = number
+  default     = 2
+}
+
+variable "duration_alarm_period" {
+  description = "Period in seconds for duration alarm"
+  type        = number
+  default     = 300
+}
+
+# Concurrent Executions Alarm Configuration
+variable "concurrent_alarm_threshold" {
+  description = "Threshold for concurrent executions alarm"
+  type        = number
+  default     = null
+}
+
+variable "concurrent_alarm_evaluation_periods" {
+  description = "Evaluation periods for concurrent executions alarm"
+  type        = number
+  default     = 2
+}
+
+variable "concurrent_alarm_period" {
+  description = "Period in seconds for concurrent executions alarm"
+  type        = number
+  default     = 60
+}
+
+# Dead Letter Queue Alarm Configuration
+variable "dlq_alarm_threshold" {
+  description = "Threshold for dead letter queue errors"
+  type        = number
+  default     = 1
+}
+
+variable "dlq_alarm_evaluation_periods" {
+  description = "Evaluation periods for DLQ alarm"
+  type        = number
+  default     = 1
+}
+
+variable "dlq_alarm_period" {
+  description = "Period in seconds for DLQ alarm"
+  type        = number
+  default     = 300
+}
+
+# CloudWatch Dashboard
+variable "create_cloudwatch_dashboard" {
+  description = "Whether to create a CloudWatch dashboard"
+  type        = bool
+  default     = false
+}

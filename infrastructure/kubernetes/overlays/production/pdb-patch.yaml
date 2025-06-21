@@ -1,0 +1,8 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-service-pdb
+spec:
+  # For production, ensure we always have enough pods running
+  minAvailable: 80%  # Keep 80% of pods available during disruptions
+  unhealthyPodEvictionPolicy: IfHealthyBudget  # Only evict unhealthy pods if healthy budget allows

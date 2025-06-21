@@ -8,8 +8,7 @@ class LoginSchema(Schema):
     """Login request schema"""
     username = fields.String(
         required=True,
-        validate=validate.Length(min=3, max=120),
-        description="Username or email"
+        validate=validate.Length(min=3, max=120)
     )
     password = fields.String(
         required=True,
@@ -41,5 +40,5 @@ class RegisterSchema(Schema):
     )
     full_name = fields.String(
         validate=validate.Length(max=120),
-        missing=None
+        allow_none=True
     )

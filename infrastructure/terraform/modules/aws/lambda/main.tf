@@ -81,7 +81,7 @@ resource "aws_lambda_function" "this" {
     for_each = var.vpc_subnet_ids != null ? [true] : []
     content {
       subnet_ids         = var.vpc_subnet_ids
-      security_group_ids = var.vpc_security_group_ids
+      security_group_ids = var.create_security_group ? concat([aws_security_group.lambda[0].id], var.vpc_security_group_ids) : var.vpc_security_group_ids
     }
   }
 
@@ -300,3 +300,251 @@ resource "aws_lambda_function_url" "this" {
 # Data sources
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
+
+# Security Group for Lambda in VPC
+resource "aws_security_group" "lambda" {
+  count = var.vpc_subnet_ids != null && var.create_security_group ? 1 : 0
+
+  name_prefix = "${local.function_name}-lambda-"
+  description = "Security group for Lambda function ${local.function_name}"
+  vpc_id      = var.vpc_id
+
+  tags = merge(var.tags, {
+    Name = "${local.function_name}-lambda-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group Rules
+resource "aws_security_group_rule" "lambda_egress" {
+  count = var.vpc_subnet_ids != null && var.create_security_group ? 1 : 0
+
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.lambda[0].id
+  description       = "Allow all outbound traffic"
+}
+
+# Additional egress rules for specific services
+resource "aws_security_group_rule" "lambda_egress_custom" {
+  for_each = var.vpc_subnet_ids != null && var.create_security_group ? var.security_group_egress_rules : {}
+
+  type              = "egress"
+  from_port         = each.value.from_port
+  to_port           = each.value.to_port
+  protocol          = each.value.protocol
+  cidr_blocks       = lookup(each.value, "cidr_blocks", null)
+  prefix_list_ids   = lookup(each.value, "prefix_list_ids", null)
+  security_group_id = aws_security_group.lambda[0].id
+  description       = each.value.description
+}
+
+# CloudWatch Alarms
+resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
+  count = var.enable_cloudwatch_alarms ? 1 : 0
+
+  alarm_name          = "${local.function_name}-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = var.error_alarm_evaluation_periods
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = var.error_alarm_period
+  statistic           = "Sum"
+  threshold           = var.error_alarm_threshold
+  alarm_description   = "This metric monitors Lambda function errors"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    FunctionName = aws_lambda_function.this.function_name
+  }
+
+  alarm_actions = var.alarm_actions
+  ok_actions    = var.ok_actions
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "lambda_throttles" {
+  count = var.enable_cloudwatch_alarms ? 1 : 0
+
+  alarm_name          = "${local.function_name}-throttles"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = var.throttle_alarm_evaluation_periods
+  metric_name         = "Throttles"
+  namespace           = "AWS/Lambda"
+  period              = var.throttle_alarm_period
+  statistic           = "Sum"
+  threshold           = var.throttle_alarm_threshold
+  alarm_description   = "This metric monitors Lambda function throttles"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    FunctionName = aws_lambda_function.this.function_name
+  }
+
+  alarm_actions = var.alarm_actions
+  ok_actions    = var.ok_actions
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
+  count = var.enable_cloudwatch_alarms ? 1 : 0
+
+  alarm_name          = "${local.function_name}-duration"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = var.duration_alarm_evaluation_periods
+  metric_name         = "Duration"
+  namespace           = "AWS/Lambda"
+  period              = var.duration_alarm_period
+  statistic           = "Average"
+  threshold           = var.duration_alarm_threshold
+  alarm_description   = "This metric monitors Lambda function duration"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    FunctionName = aws_lambda_function.this.function_name
+  }
+
+  alarm_actions = var.alarm_actions
+  ok_actions    = var.ok_actions
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "lambda_concurrent_executions" {
+  count = var.enable_cloudwatch_alarms && var.reserved_concurrent_executions != null ? 1 : 0
+
+  alarm_name          = "${local.function_name}-concurrent-executions"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = var.concurrent_alarm_evaluation_periods
+  metric_name         = "ConcurrentExecutions"
+  namespace           = "AWS/Lambda"
+  period              = var.concurrent_alarm_period
+  statistic           = "Maximum"
+  threshold           = var.concurrent_alarm_threshold != null ? var.concurrent_alarm_threshold : var.reserved_concurrent_executions * 0.9
+  alarm_description   = "This metric monitors Lambda concurrent executions"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    FunctionName = aws_lambda_function.this.function_name
+  }
+
+  alarm_actions = var.alarm_actions
+  ok_actions    = var.ok_actions
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "lambda_dead_letter_errors" {
+  count = var.enable_cloudwatch_alarms && var.dead_letter_target_arn != null ? 1 : 0
+
+  alarm_name          = "${local.function_name}-dead-letter-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = var.dlq_alarm_evaluation_periods
+  metric_name         = "DeadLetterErrors"
+  namespace           = "AWS/Lambda"
+  period              = var.dlq_alarm_period
+  statistic           = "Sum"
+  threshold           = var.dlq_alarm_threshold
+  alarm_description   = "This metric monitors Lambda dead letter queue errors"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    FunctionName = aws_lambda_function.this.function_name
+  }
+
+  alarm_actions = var.alarm_actions
+  ok_actions    = var.ok_actions
+
+  tags = var.tags
+}
+
+# CloudWatch Dashboard
+resource "aws_cloudwatch_dashboard" "lambda" {
+  count = var.create_cloudwatch_dashboard ? 1 : 0
+
+  dashboard_name = "${local.function_name}-dashboard"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
+
+        properties = {
+          metrics = [
+            ["AWS/Lambda", "Invocations", "FunctionName", aws_lambda_function.this.function_name, { stat = "Sum" }],
+            [".", "Errors", ".", ".", { stat = "Sum" }],
+            [".", "Throttles", ".", ".", { stat = "Sum" }]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = data.aws_region.current.name
+          title   = "Invocations, Errors, and Throttles"
+          period  = 300
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+
+        properties = {
+          metrics = [
+            ["AWS/Lambda", "Duration", "FunctionName", aws_lambda_function.this.function_name, { stat = "Average" }],
+            ["...", { stat = "Maximum" }],
+            ["...", { stat = "Minimum" }]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = data.aws_region.current.name
+          title   = "Duration (ms)"
+          period  = 300
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 6
+        width  = 12
+        height = 6
+
+        properties = {
+          metrics = [
+            ["AWS/Lambda", "ConcurrentExecutions", "FunctionName", aws_lambda_function.this.function_name, { stat = "Maximum" }]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = data.aws_region.current.name
+          title   = "Concurrent Executions"
+          period  = 300
+        }
+      },
+      {
+        type   = "log"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
+
+        properties = {
+          query   = "SOURCE '${aws_cloudwatch_log_group.lambda.name}' | fields @timestamp, @message | sort @timestamp desc | limit 100"
+          region  = data.aws_region.current.name
+          title   = "Recent Logs"
+        }
+      }
+    ]
+  })
+}

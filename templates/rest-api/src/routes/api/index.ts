@@ -15,7 +15,7 @@ v1Router.use('/products', productsRouter);
 apiRouter.use('/v1', v1Router);
 
 // API root endpoint
-apiRouter.get('/', (req, res) => {
+apiRouter.get('/', (_req, res) => {
   res.json({
     message: 'REST API Template',
     version: 'v1',

@@ -1,0 +1,4 @@
+/Users/mp/Documents/Code/claude-code/projects/devxplatform/templates/webapp-nextjs/Dockerfile:6 DL3018 [1m[93mwarning[0m: Pin versions in apk add. Instead of `apk add <package>` use `apk add <package>=<version>`
+/Users/mp/Documents/Code/claude-code/projects/devxplatform/templates/webapp-nextjs/Dockerfile:27 DL3059 [92minfo[0m: Multiple consecutive `RUN` instructions. Consider consolidation.
+/Users/mp/Documents/Code/claude-code/projects/devxplatform/templates/webapp-nextjs/Dockerfile:38 DL3059 [92minfo[0m: Multiple consecutive `RUN` instructions. Consider consolidation.
+/Users/mp/Documents/Code/claude-code/projects/devxplatform/templates/webapp-nextjs/Dockerfile:45 DL3059 [92minfo[0m: Multiple consecutive `RUN` instructions. Consider consolidation.

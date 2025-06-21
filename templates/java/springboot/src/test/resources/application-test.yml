@@ -1,0 +1,59 @@
+spring:
+  # Test database configuration - H2 fallback
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  
+  # JPA/Hibernate configuration for tests
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+  
+  # H2 Console for debugging (optional)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
+  # Security configuration for tests
+  security:
+    user:
+      name: test
+      password: test
+      roles: USER
+  
+  # Cache configuration
+  cache:
+    type: simple
+  
+  # Logging configuration for tests
+logging:
+  level:
+    com.devxplatform.springboot: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  
+# Test-specific configurations
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Test application configuration
+app:
+  test:
+    cleanup: true
+    performance:
+      enabled: false

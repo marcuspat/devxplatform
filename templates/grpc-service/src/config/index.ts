@@ -1,8 +1,35 @@
 import Joi from 'joi';
 import fs from 'fs';
 
+// Interface for validated environment variables
+interface ValidatedEnv {
+  NODE_ENV: 'development' | 'production' | 'test' | 'staging';
+  GRPC_HOST: string;
+  GRPC_PORT: number;
+  LOG_LEVEL: 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly';
+  GRPC_MAX_RECEIVE_MESSAGE_LENGTH: number;
+  GRPC_MAX_SEND_MESSAGE_LENGTH: number;
+  GRPC_KEEPALIVE_TIME_MS: number;
+  GRPC_KEEPALIVE_TIMEOUT_MS: number;
+  GRPC_KEEPALIVE_PERMIT_WITHOUT_CALLS: number;
+  GRPC_MAX_CONCURRENT_STREAMS: number;
+  TLS_CERT_PATH?: string;
+  TLS_KEY_PATH?: string;
+  TLS_CA_PATH?: string;
+  TLS_CHECK_CLIENT_CERTIFICATE: boolean;
+  RATE_LIMIT_WINDOW_MS: number;
+  RATE_LIMIT_MAX_REQUESTS: number;
+  METRICS_ENABLED: boolean;
+  METRICS_PORT: number;
+  DATABASE_URL?: string;
+  DATABASE_POOL_SIZE: number;
+  JWT_SECRET: string;
+  JWT_EXPIRY: string;
+  SENTRY_DSN?: string;
+}
+
 // Environment variable validation schema
-const envSchema = Joi.object({
+const envSchema = Joi.object<ValidatedEnv>({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test', 'staging')
     .default('development'),
@@ -59,10 +86,18 @@ const envSchema = Joi.object({
 }).unknown();
 
 // Validate environment variables
-const { error, value: validatedEnv } = envSchema.validate(process.env);
+const { error, value: validatedEnv } = envSchema.validate(process.env) as {
+  error?: Error;
+  value?: ValidatedEnv;
+};
 
 if (error) {
   throw new Error(`Config validation error: ${error.message}`);
+}
+
+// Ensure we have a valid environment object
+if (!validatedEnv) {
+  throw new Error('Environment validation failed');
 }
 
 // Load TLS certificates if configured
@@ -71,7 +106,7 @@ const loadTlsFile = (path?: string): Buffer | null => {
   try {
     return fs.readFileSync(path);
   } catch (err) {
-    throw new Error(`Failed to load TLS file ${path}: ${err}`);
+    throw new Error(`Failed to load TLS file ${path}: ${String(err)}`);
   }
 };
 

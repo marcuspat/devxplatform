@@ -4,6 +4,7 @@ const nextConfig = {
   swcMinify: true,
   poweredByHeader: false,
   compress: true,
+  output: 'standalone',
   
   // Enable experimental features
   experimental: {

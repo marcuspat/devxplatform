@@ -3,52 +3,68 @@ kind: Kustomization
 
 namespace: production
 
-bases:
+resources:
+  - namespace.yaml
   - ../../base/api-service
+  - priority-class.yaml
   - ../../components/hpa
   - ../../components/pdb
   - ../../components/network-policies
   - ../../components/monitoring
-  - ../../service-mesh/istio
 
 namePrefix: prod-
 
-commonLabels:
-  environment: production
+labels:
+  - pairs:
+      environment: production
+      team: platform
+      tier: backend
   
 commonAnnotations:
   environment: production
   managed-by: kustomize
+  version: v1.0.0
 
 replicas:
   - name: api-service
     count: 5 # Higher base replicas for prod
 
-patchesStrategicMerge:
-  - deployment-patch.yaml
-  - hpa-patch.yaml
-  - pdb-patch.yaml
-
-configMapGenerator:
-  - name: api-config
-    behavior: merge
-    literals:
-      - LOG_LEVEL=INFO
-      - ENVIRONMENT=production
-      - ENABLE_DEBUG_ENDPOINTS=false
-      - ENABLE_METRICS=true
-      - ENABLE_TRACING=true
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: api-service
+    path: deployment-patch.yaml
+  - target:
+      group: autoscaling
+      version: v2
+      kind: HorizontalPodAutoscaler
+      name: api-service-hpa
+    path: hpa-patch.yaml
+  - target:
+      group: policy
+      version: v1
+      kind: PodDisruptionBudget
+      name: api-service-pdb
+    path: pdb-patch.yaml
+  - target:
+      version: v1
+      kind: ConfigMap
+      name: api-config
+    path: configmap-patch.yaml
 
 secretGenerator:
-  - name: api-secrets
-    behavior: merge
-    envs:
-      - secrets/prod.env
+  - name: api-secrets-env
+    literals:
+      - DATABASE_URL=postgresql://prod_user:prod_pass@postgres-prod:5432/api_prod
+      - REDIS_URL=redis://redis-prod:6379/0
+      - JWT_SECRET=prod-jwt-secret-replace-with-real-secret
+      - API_KEY=prod-api-key-replace-with-real-key
+      - INTERNAL_API_KEY=prod-internal-api-key-replace-with-real
+      - ENCRYPTION_KEY=prod-encryption-key-32-char-replace
 
 images:
-  - name: api-service
+  - name: devx-platform/api
     newTag: v1.0.0  # Specific version for prod
 
-resources:
-  - priority-class.yaml
-  - pod-security-policy.yaml

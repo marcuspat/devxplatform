@@ -14,6 +14,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// JWTServiceInterface defines the methods for JWT service
+type JWTServiceInterface interface {
+	GenerateToken(user *models.User) (string, error)
+	ValidateToken(tokenString string) (*Claims, error)
+}
+
 // Claims represents JWT claims
 type Claims struct {
 	UserID   int    `json:"user_id"`
@@ -86,11 +92,11 @@ func (j *JWTService) ValidateToken(tokenString string) (*Claims, error) {
 		return claims, nil
 	}
 
-	return nil, jwt.ErrTokenInvalid
+	return nil, jwt.ErrSignatureInvalid
 }
 
 // AuthMiddleware creates a middleware for JWT authentication
-func AuthMiddleware(jwtService *JWTService) gin.HandlerFunc {
+func AuthMiddleware(jwtService JWTServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {

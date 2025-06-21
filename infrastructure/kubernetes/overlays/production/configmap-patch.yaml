@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  # Production overrides
+  LOG_LEVEL: "INFO"
+  NODE_ENV: "production"
+  ENVIRONMENT: "production"
+  ENABLE_DEBUG_ENDPOINTS: "false"
+  
+  # Production security settings
+  RATE_LIMIT_REQUESTS_PER_MINUTE: "10000"
+  RATE_LIMIT_BURST_SIZE: "500"
+  CORS_ALLOWED_ORIGINS: "https://*.devxplatform.io"
+  
+  # Performance settings
+  CACHE_TTL: "7200"  # 2 hours
+  
+  # Production application.yaml
+  application.yaml: |
+    server:
+      port: 3000
+      gracefulShutdownTimeout: 60s
+    
+    logging:
+      level: INFO
+      format: json
+      structured: true
+    
+    metrics:
+      enabled: true
+      port: 9090
+      path: /metrics
+      detailed: true
+    
+    cache:
+      type: redis
+      ttl: 7200
+      maxSize: 10000
+    
+    rateLimit:
+      enabled: true
+      requestsPerMinute: 10000
+      burstSize: 500
+      keyPrefix: "prod_rl_"
+    
+    cors:
+      enabled: true
+      allowedOrigins:
+        - "https://app.devxplatform.io"
+        - "https://api.devxplatform.io"
+        - "https://admin.devxplatform.io"
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allowedHeaders:
+        - Authorization
+        - Content-Type
+        - X-Request-ID
+        - X-Trace-ID
+      exposedHeaders:
+        - X-Request-ID
+        - X-Rate-Limit-Remaining
+        - X-Rate-Limit-Reset
+    
+    security:
+      enabled: true
+      tls:
+        enabled: true
+        minVersion: "1.2"
+      headers:
+        hsts: true
+        xssProtection: true
+        contentTypeNosniff: true
+        frameOptions: DENY
+    
+    monitoring:
+      traces:
+        enabled: true
+        samplingRate: 0.1
+      metrics:
+        histogramBuckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]

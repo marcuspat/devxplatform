@@ -5,9 +5,9 @@ import { logger } from './utils/logger';
 import { config } from './config';
 import { gracefulShutdown } from './utils/graceful-shutdown';
 
-async function main() {
+function main(): void {
   try {
-    const server = await createServer();
+    const server = createServer();
     
     const httpServer = server.listen(config.port, () => {
       logger.info(`Server is running on port ${config.port} in ${config.env} mode`);
@@ -23,4 +23,4 @@ async function main() {
   }
 }
 
-main();
+void main();

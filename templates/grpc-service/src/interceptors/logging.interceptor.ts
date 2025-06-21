@@ -1,8 +1,7 @@
-import * as grpc from '@grpc/grpc-js';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
 
-export const loggingInterceptor: grpc.ServerInterceptor = (call, callback, next) => {
+export const loggingInterceptor = (call: any, callback: any, next: any) => {
   const requestId = uuidv4();
   const startTime = Date.now();
   
@@ -20,7 +19,7 @@ export const loggingInterceptor: grpc.ServerInterceptor = (call, callback, next)
   });
 
   // Wrap callback to log response
-  const wrappedCallback = (error: grpc.ServiceError | null, value?: any) => {
+  const wrappedCallback = (error: any, value?: any) => {
     const duration = Date.now() - startTime;
     
     if (error) {

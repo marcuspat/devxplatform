@@ -1,9 +1,9 @@
 """
 Users API endpoints
 """
+
 from typing import List, Optional
-from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +23,7 @@ async def list_users(
     limit: int = Query(100, ge=1, le=100),
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """List users with pagination and search"""
     user_service = UserService(db)
@@ -35,19 +35,19 @@ async def list_users(
 async def create_user(
     user_data: UserCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """Create a new user"""
     user_service = UserService(db)
-    
+
     # Check if user already exists
     existing_user = await user_service.get_user_by_email(user_data.email)
     if existing_user:
         raise ConflictException(
             message=f"User with email {user_data.email} already exists",
-            details={"email": user_data.email}
+            details={"email": user_data.email},
         )
-    
+
     user = await user_service.create_user(user_data)
     return user
 
@@ -56,15 +56,15 @@ async def create_user(
 async def get_user(
     user_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """Get user by ID"""
     user_service = UserService(db)
     user = await user_service.get_user(user_id)
-    
+
     if not user:
         raise NotFoundException("User", user_id)
-    
+
     return user
 
 
@@ -73,15 +73,15 @@ async def update_user(
     user_id: UUID,
     user_data: UserUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """Update user"""
     user_service = UserService(db)
     user = await user_service.update_user(user_id, user_data)
-    
+
     if not user:
         raise NotFoundException("User", user_id)
-    
+
     return user
 
 
@@ -89,13 +89,13 @@ async def update_user(
 async def delete_user(
     user_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """Delete user"""
     user_service = UserService(db)
     deleted = await user_service.delete_user(user_id)
-    
+
     if not deleted:
         raise NotFoundException("User", user_id)
-    
+
     return None

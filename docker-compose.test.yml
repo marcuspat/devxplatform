@@ -1,0 +1,262 @@
+version: '3.8'
+
+services:
+  # Node.js REST API
+  rest-api:
+    build:
+      context: ./templates/rest-api
+      dockerfile: Dockerfile
+    container_name: test-rest-api
+    ports:
+      - "3001:3000"
+    environment:
+      NODE_ENV: test
+      PORT: 3000
+      DATABASE_URL: postgresql://testuser:testpass@postgres:5432/testdb
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Node.js GraphQL API
+  graphql-api:
+    build:
+      context: ./templates/graphql-api
+      dockerfile: Dockerfile
+    container_name: test-graphql-api
+    ports:
+      - "3002:3000"
+    environment:
+      NODE_ENV: test
+      PORT: 3000
+      DATABASE_URL: postgresql://testuser:testpass@postgres:5432/testdb
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - test-network
+
+  # Node.js gRPC Service
+  grpc-service:
+    build:
+      context: ./templates/grpc-service
+      dockerfile: Dockerfile
+    container_name: test-grpc-service
+    ports:
+      - "50051:50051"
+    environment:
+      NODE_ENV: test
+      GRPC_PORT: 50051
+      DATABASE_URL: postgresql://testuser:testpass@postgres:5432/testdb
+    depends_on:
+      - postgres
+    networks:
+      - test-network
+
+  # Python FastAPI
+  fastapi:
+    build:
+      context: ./templates/python/fastapi
+      dockerfile: Dockerfile
+    container_name: test-fastapi
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql://testuser:testpass@postgres:5432/testdb
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: test-secret-key-change-in-production
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - test-network
+
+  # Python Flask
+  flask:
+    build:
+      context: ./templates/python/flask
+      dockerfile: Dockerfile
+    container_name: test-flask
+    ports:
+      - "8002:5000"
+    environment:
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://testuser:testpass@postgres:5432/testdb
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: test-secret-key-change-in-production
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - test-network
+
+  # Go Gin
+  gin:
+    build:
+      context: ./templates/go/gin
+      dockerfile: Dockerfile
+    container_name: test-gin
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://testuser:testpass@postgres:5432/testdb?sslmode=disable
+      REDIS_URL: redis:6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - test-network
+
+  # Java Spring Boot
+  springboot:
+    build:
+      context: ./templates/java/springboot
+      dockerfile: Dockerfile
+    container_name: test-springboot
+    ports:
+      - "8081:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/testdb
+      SPRING_DATASOURCE_USERNAME: testuser
+      SPRING_DATASOURCE_PASSWORD: testpass
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - test-network
+
+  # Next.js Web App
+  nextjs:
+    build:
+      context: ./templates/webapp-nextjs
+      dockerfile: Dockerfile
+    container_name: test-nextjs
+    ports:
+      - "3003:3000"
+    environment:
+      NODE_ENV: test
+      NEXT_PUBLIC_API_URL: http://rest-api:3000
+    depends_on:
+      - rest-api
+    networks:
+      - test-network
+
+  # Worker Service
+  worker:
+    build:
+      context: ./templates/worker-service
+      dockerfile: Dockerfile
+    container_name: test-worker
+    environment:
+      NODE_ENV: test
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - test-network
+
+  # Python Celery Worker
+  celery-worker:
+    build:
+      context: ./templates/python/celery
+      dockerfile: Dockerfile
+    container_name: test-celery-worker
+    command: celery -A app.celery_app worker --loglevel=info
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - redis
+    networks:
+      - test-network
+
+  # Celery Beat Scheduler
+  celery-beat:
+    build:
+      context: ./templates/python/celery
+      dockerfile: Dockerfile
+    container_name: test-celery-beat
+    command: celery -A app.celery_app beat --loglevel=info
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - redis
+    networks:
+      - test-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: test-postgres
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: test-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: test-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - test-network
+
+  # Grafana for monitoring
+  grafana:
+    image: grafana/grafana:latest
+    container_name: test-grafana
+    ports:
+      - "3004:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    depends_on:
+      - prometheus
+    networks:
+      - test-network
+
+volumes:
+  postgres-data:
+
+networks:
+  test-network:
+    driver: bridge

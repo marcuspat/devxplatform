@@ -8,6 +8,11 @@ terraform {
   }
 }
 
+# Provider configuration
+provider "aws" {
+  # Configuration options
+}
+
 # S3 bucket for Terraform state
 resource "aws_s3_bucket" "terraform_state" {
   bucket = var.state_bucket_name
@@ -61,6 +66,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "terraform_state" {
     id     = "expire-old-versions"
     status = "Enabled"
 
+    filter {
+      prefix = ""
+    }
+
     noncurrent_version_expiration {
       noncurrent_days = var.state_version_retention_days
     }
@@ -69,6 +78,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "terraform_state" {
   rule {
     id     = "transition-old-versions"
     status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
 
     noncurrent_version_transition {
       noncurrent_days = 30

@@ -59,12 +59,19 @@ export function validateInput(input: any, rules: ValidationRules): string | null
 function getFieldValue(obj: any, fieldPath: string): any {
   // Handle protobuf getters (e.g., getEmail())
   const getterName = `get${fieldPath.charAt(0).toUpperCase() + fieldPath.slice(1)}`;
-  if (typeof obj[getterName] === 'function') {
+  // Use Object.prototype.hasOwnProperty to avoid prototype pollution
+  if (Object.prototype.hasOwnProperty.call(obj, getterName) && typeof obj[getterName] === 'function') {
+    // eslint-disable-next-line security/detect-object-injection
     return obj[getterName]();
   }
   
-  // Handle direct property access
-  return obj[fieldPath];
+  // Handle direct property access with safety check
+  if (Object.prototype.hasOwnProperty.call(obj, fieldPath)) {
+    // eslint-disable-next-line security/detect-object-injection
+    return obj[fieldPath];
+  }
+  
+  return undefined;
 }
 
 function isValidEmail(email: string): boolean {

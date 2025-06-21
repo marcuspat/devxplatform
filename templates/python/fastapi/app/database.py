@@ -1,9 +1,14 @@
 """
 Async database configuration using SQLAlchemy
 """
+
 from typing import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import declarative_base
 
 from app.config import settings
@@ -15,7 +20,7 @@ engine = create_async_engine(
     max_overflow=settings.DB_MAX_OVERFLOW,
     pool_pre_ping=settings.DB_POOL_PRE_PING,
     echo=settings.DB_ECHO,
-    future=True
+    future=True,
 )
 
 # Create async session factory
@@ -24,7 +29,7 @@ async_session = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
     autocommit=False,
-    autoflush=False
+    autoflush=False,
 )
 
 # Create declarative base for models
@@ -50,10 +55,17 @@ async def init_db() -> None:
     """
     Initialize database (create tables if needed)
     """
-    async with engine.begin() as conn:
-        # In production, use Alembic for migrations
-        # await conn.run_sync(Base.metadata.create_all)
-        pass
+    try:
+        async with engine.begin() as _:
+            # In production, use Alembic for migrations
+            # await conn.run_sync(Base.metadata.create_all)
+            pass
+    except Exception as e:
+        # Log the error but allow the app to start for development
+        import logging
+
+        logging.warning(f"Database connection failed during init: {e}")
+        logging.warning("Application will start without database connection")
 
 
 async def close_db_connections() -> None:

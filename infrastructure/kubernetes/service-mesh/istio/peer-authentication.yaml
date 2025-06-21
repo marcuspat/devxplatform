@@ -2,7 +2,10 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: default
-  namespace: default
+  namespace: devx-platform
+  labels:
+    app: api-service
+    component: service-mesh
 spec:
   mtls:
     mode: STRICT
@@ -11,6 +14,10 @@ apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
   name: api-service-authz
+  namespace: devx-platform
+  labels:
+    app: api-service
+    component: service-mesh
 spec:
   selector:
     matchLabels:
@@ -20,13 +27,13 @@ spec:
   # Allow all internal mesh traffic
   - from:
     - source:
-        principals: ["cluster.local/ns/default/sa/*"]
+        principals: ["cluster.local/ns/devx-platform/sa/*"]
   # Allow specific service accounts
   - from:
     - source:
         principals: 
-        - "cluster.local/ns/default/sa/frontend-service"
-        - "cluster.local/ns/default/sa/worker-service"
+        - "cluster.local/ns/devx-platform/sa/frontend-service"
+        - "cluster.local/ns/devx-platform/sa/worker-service"
     to:
     - operation:
         methods: ["GET", "POST", "PUT", "DELETE"]

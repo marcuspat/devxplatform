@@ -2,6 +2,10 @@ apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: api-service-vs
+  namespace: devx-platform
+  labels:
+    app: api-service
+    component: service-mesh
 spec:
   hosts:
   - api.example.com

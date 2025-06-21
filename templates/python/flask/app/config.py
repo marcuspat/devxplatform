@@ -74,8 +74,10 @@ class TestingConfig(Config):
     """Testing configuration"""
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_ENGINE_OPTIONS = {}  # Override to remove pool settings for SQLite
     WTF_CSRF_ENABLED = False
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=5)
+    CACHE_TYPE = 'SimpleCache'  # Use simple cache for testing
 
 
 class ProductionConfig(Config):

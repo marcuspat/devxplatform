@@ -21,7 +21,7 @@ interface TokenPayload {
   role: string;
 }
 
-export const authInterceptor: grpc.ServerInterceptor = (call, callback, next) => {
+export const authInterceptor = (call: any, callback: any, next: any) => {
   const methodName = call.getPath();
   
   // Skip authentication for public methods
@@ -37,6 +37,8 @@ export const authInterceptor: grpc.ServerInterceptor = (call, callback, next) =>
       return callback({
         code: grpc.status.UNAUTHENTICATED,
         message: 'No authorization token provided',
+        details: 'No authorization token provided',
+        metadata: new grpc.Metadata(),
       });
     }
 
@@ -46,6 +48,8 @@ export const authInterceptor: grpc.ServerInterceptor = (call, callback, next) =>
       return callback({
         code: grpc.status.UNAUTHENTICATED,
         message: 'Invalid authorization format',
+        details: 'Invalid authorization format',
+        metadata: new grpc.Metadata(),
       });
     }
 
@@ -57,6 +61,8 @@ export const authInterceptor: grpc.ServerInterceptor = (call, callback, next) =>
       return callback({
         code: grpc.status.PERMISSION_DENIED,
         message: 'Insufficient permissions',
+        details: 'Insufficient permissions',
+        metadata: new grpc.Metadata(),
       });
     }
 
@@ -91,16 +97,22 @@ export const authInterceptor: grpc.ServerInterceptor = (call, callback, next) =>
       callback({
         code: grpc.status.UNAUTHENTICATED,
         message: 'Invalid token',
+        details: 'Invalid token',
+        metadata: new grpc.Metadata(),
       });
     } else if (error instanceof jwt.TokenExpiredError) {
       callback({
         code: grpc.status.UNAUTHENTICATED,
         message: 'Token expired',
+        details: 'Token expired',
+        metadata: new grpc.Metadata(),
       });
     } else {
       callback({
         code: grpc.status.INTERNAL,
         message: 'Authentication error',
+        details: 'Authentication error',
+        metadata: new grpc.Metadata(),
       });
     }
   }

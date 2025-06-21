@@ -6,12 +6,7 @@ metadata:
     app: api-service
     tier: backend
 spec:
-  replicas: 3 # Base replica count for HA
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0 # Zero downtime deployments
+  replicas: 3
   selector:
     matchLabels:
       app: api-service
@@ -32,11 +27,11 @@ spec:
         fsGroup: 1000
       containers:
       - name: api
-        image: api-service:latest
+        image: devx-platform/api:latest
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
-          containerPort: 8080
+          containerPort: 3000
           protocol: TCP
         - name: metrics
           containerPort: 9090
@@ -58,38 +53,30 @@ spec:
         - configMapRef:
             name: api-config
         - secretRef:
-            name: api-secrets
+            name: api-secrets-env
         resources:
           requests:
-            memory: "256Mi"  # Base memory for API services
-            cpu: "250m"      # Quarter core baseline
+            memory: "256Mi"
+            cpu: "250m"
           limits:
-            memory: "512Mi"  # 2x request for burst capacity
-            cpu: "1000m"     # Full core for peak loads
+            memory: "512Mi"
+            cpu: "500m"
         livenessProbe:
           httpGet:
-            path: /health/live
-            port: http
+            path: /health
+            port: 3000
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /health/ready
-            port: http
-          initialDelaySeconds: 10
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
-        startupProbe:
-          httpGet:
-            path: /health/startup
-            port: http
-          initialDelaySeconds: 0
-          periodSeconds: 10
-          timeoutSeconds: 3
-          failureThreshold: 30 # 5 minutes for slow starts
         volumeMounts:
         - name: cache
           mountPath: /app/cache
@@ -119,4 +106,4 @@ spec:
                   operator: In
                   values:
                   - api-service
-              topologyKey: failure-domain.beta.kubernetes.io/zone
+              topologyKey: kubernetes.io/hostname

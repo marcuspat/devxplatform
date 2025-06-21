@@ -3,16 +3,28 @@ import { StatusCodes } from 'http-status-codes';
 import { validateRequest } from '../../middleware/validate-request';
 import { userSchemas } from '../../schemas/user.schema';
 import { AppError } from '../../middleware/error-handler';
-import { asyncHandler } from '../../utils/async-handler';
+import { User, CreateUserDto, UpdateUserDto } from '../../types/user.types';
+
+// Extended Request types for better type safety
+interface CreateUserRequest extends Request {
+  body: CreateUserDto;
+}
+
+interface UpdateUserRequest extends Request {
+  body: UpdateUserDto;
+  params: {
+    id: string;
+  };
+}
 
 export const usersRouter = Router();
 
 // Example in-memory storage (replace with actual database)
-const users = new Map<string, any>();
+const users = new Map<string, User>();
 
 // GET /users - List all users
-usersRouter.get('/', asyncHandler(async (req: Request, res: Response) => {
-  const { page = 1, limit = 10, sort = 'createdAt', order = 'desc' } = req.query;
+usersRouter.get('/', (req: Request, res: Response) => {
+  const { page = 1, limit = 10 } = req.query;
   
   const usersList = Array.from(users.values());
   const total = usersList.length;
@@ -31,10 +43,10 @@ usersRouter.get('/', asyncHandler(async (req: Request, res: Response) => {
       totalPages: Math.ceil(total / Number(limit)),
     },
   });
-}));
+});
 
 // GET /users/:id - Get user by ID
-usersRouter.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+usersRouter.get('/:id', (req: Request, res: Response) => {
   const { id } = req.params;
   const user = users.get(id);
   
@@ -43,16 +55,16 @@ usersRouter.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   }
   
   res.json({ data: user });
-}));
+});
 
 // POST /users - Create new user
 usersRouter.post('/', 
   validateRequest(userSchemas.create),
-  asyncHandler(async (req: Request, res: Response) => {
-    const userData = req.body;
+  (req: CreateUserRequest, res: Response) => {
+    const userData: CreateUserDto = req.body;
     const id = Date.now().toString(); // Simple ID generation
     
-    const newUser = {
+    const newUser: User = {
       id,
       ...userData,
       createdAt: new Date().toISOString(),
@@ -65,13 +77,13 @@ usersRouter.post('/',
       data: newUser,
       message: 'User created successfully',
     });
-  })
+  }
 );
 
 // PUT /users/:id - Update user
 usersRouter.put('/:id',
   validateRequest(userSchemas.update),
-  asyncHandler(async (req: Request, res: Response) => {
+  (req: UpdateUserRequest, res: Response) => {
     const { id } = req.params;
     const existingUser = users.get(id);
     
@@ -79,9 +91,10 @@ usersRouter.put('/:id',
       throw new AppError('User not found', StatusCodes.NOT_FOUND, 'USER_NOT_FOUND');
     }
     
-    const updatedUser = {
+    const updateData: UpdateUserDto = req.body;
+    const updatedUser: User = {
       ...existingUser,
-      ...req.body,
+      ...updateData,
       id, // Ensure ID doesn't change
       updatedAt: new Date().toISOString(),
     };
@@ -92,11 +105,11 @@ usersRouter.put('/:id',
       data: updatedUser,
       message: 'User updated successfully',
     });
-  })
+  }
 );
 
 // DELETE /users/:id - Delete user
-usersRouter.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+usersRouter.delete('/:id', (req: Request, res: Response) => {
   const { id } = req.params;
   
   if (!users.has(id)) {
@@ -106,4 +119,4 @@ usersRouter.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
   users.delete(id);
   
   res.status(StatusCodes.NO_CONTENT).send();
-}));
+});

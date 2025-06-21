@@ -1,17 +1,19 @@
 import 'dotenv/config';
+import { Server, ServerCredentials } from '@grpc/grpc-js';
 import { createServer } from './server';
 import { logger } from './utils/logger';
 import { config } from './config';
 import { gracefulShutdown } from './utils/graceful-shutdown';
+import { startMetricsServer } from './metrics';
 
-async function main() {
+function main() {
   try {
-    const server = await createServer();
+    const server = createServer();
     
     server.bindAsync(
       `${config.host}:${config.port}`,
       config.isProduction
-        ? require('@grpc/grpc-js').ServerCredentials.createSsl(
+        ? ServerCredentials.createSsl(
             config.tls.cert,
             [{
               cert_chain: config.tls.cert,
@@ -19,7 +21,7 @@ async function main() {
             }],
             config.tls.checkClientCertificate
           )
-        : require('@grpc/grpc-js').ServerCredentials.createInsecure(),
+        : ServerCredentials.createInsecure(),
       (error, port) => {
         if (error) {
           logger.error('Failed to bind gRPC server:', error);
@@ -31,7 +33,6 @@ async function main() {
         
         // Start metrics server if enabled
         if (config.metrics.enabled) {
-          const { startMetricsServer } = require('./metrics');
           startMetricsServer();
         }
       }
@@ -45,4 +46,4 @@ async function main() {
   }
 }
 
-main();
+void main();

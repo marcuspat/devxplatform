@@ -76,7 +76,7 @@ func NewRouter(cfg *config.Config, db *database.DB, logger *zap.Logger) *gin.Eng
 		{
 			// Protected routes (require authentication)
 			users.Use(middleware.AuthMiddleware(jwtService))
-			
+
 			// User profile routes (accessible by authenticated users)
 			users.GET("/profile", userHandler.GetProfile)
 			users.PUT("/profile", userHandler.UpdateProfile)
@@ -99,7 +99,7 @@ func NewRouter(cfg *config.Config, db *database.DB, logger *zap.Logger) *gin.Eng
 			protected.GET("/example", func(c *gin.Context) {
 				userID, _ := middleware.GetUserID(c)
 				username, _ := middleware.GetUsername(c)
-				
+
 				c.JSON(200, gin.H{
 					"message":  "This is a protected endpoint",
 					"user_id":  userID,
@@ -111,11 +111,11 @@ func NewRouter(cfg *config.Config, db *database.DB, logger *zap.Logger) *gin.Eng
 		// Example of an optional auth route
 		v1.GET("/public", middleware.OptionalAuthMiddleware(jwtService), func(c *gin.Context) {
 			response := gin.H{"message": "This is a public endpoint"}
-			
+
 			if userID, exists := middleware.GetUserID(c); exists {
 				response["authenticated_user_id"] = userID
 			}
-			
+
 			c.JSON(200, response)
 		})
 	}

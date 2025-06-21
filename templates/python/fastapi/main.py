@@ -1,9 +1,16 @@
 """
 FastAPI Service Template with Async Support
 """
+
 import asyncio
+import os
+import sys
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+
+# Ensure the app module can be imported when running this file directly
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import structlog
 from fastapi import FastAPI, Request
@@ -29,7 +36,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -46,33 +53,31 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     """
     # Startup
     logger.info("Starting FastAPI service", service=settings.SERVICE_NAME)
-    
+
     # Initialize database connections
     await init_db()
-    
+
     # Initialize Redis connection pool
     await init_redis_pool()
-    
+
     # Log startup complete
-    logger.info("Service startup complete", 
-                host=settings.HOST, 
-                port=settings.PORT)
-    
+    logger.info("Service startup complete", host=settings.HOST, port=settings.PORT)
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down FastAPI service")
-    
+
     # Close database connections
     await close_db_connections()
-    
+
     # Close Redis connections
     await close_redis_pool()
-    
+
     # Allow pending tasks to complete
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
     await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     logger.info("Service shutdown complete")
 
 
@@ -84,7 +89,7 @@ app = FastAPI(
     docs_url="/docs" if settings.ENABLE_DOCS else None,
     redoc_url="/redoc" if settings.ENABLE_DOCS else None,
     openapi_url="/openapi.json" if settings.ENABLE_DOCS else None,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -112,17 +117,19 @@ app.include_router(api_router, prefix="/api/v1")
 @app.exception_handler(ServiceException)
 async def service_exception_handler(request: Request, exc: ServiceException):
     """Handle custom service exceptions"""
-    logger.error("Service exception", 
-                 error=exc.message, 
-                 status_code=exc.status_code,
-                 path=request.url.path)
+    logger.error(
+        "Service exception",
+        error=exc.message,
+        status_code=exc.status_code,
+        path=request.url.path,
+    )
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "error": exc.message,
             "code": exc.error_code,
-            "details": exc.details
-        }
+            "details": exc.details,
+        },
     )
 
 
@@ -132,10 +139,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception", path=request.url.path)
     return JSONResponse(
         status_code=500,
-        content={
-            "error": "Internal server error",
-            "code": "INTERNAL_ERROR"
-        }
+        content={"error": "Internal server error", "code": "INTERNAL_ERROR"},
     )
 
 
@@ -145,7 +149,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": settings.SERVICE_NAME,
-        "version": settings.VERSION
+        "version": settings.VERSION,
     }
 
 
@@ -153,15 +157,12 @@ async def health_check():
 async def readiness_check():
     """Readiness check endpoint"""
     # Add checks for database, redis, etc.
-    return {
-        "status": "ready",
-        "service": settings.SERVICE_NAME
-    }
+    return {"status": "ready", "service": settings.SERVICE_NAME}
 
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "main:app",
         host=settings.HOST,

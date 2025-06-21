@@ -9,18 +9,29 @@ import (
 	"gin-service/internal/database"
 	"gin-service/internal/models"
 
-	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 
+// UserServiceInterface defines the methods for user service
+type UserServiceInterface interface {
+	Create(req *models.CreateUserRequest) (*models.User, error)
+	GetByID(id int) (*models.User, error)
+	GetByUsername(username string) (*models.User, error)
+	GetByEmail(email string) (*models.User, error)
+	List(filter *models.UserFilter, pagination *database.Paginate) ([]*models.User, error)
+	Update(id int, req *models.UpdateUserRequest) (*models.User, error)
+	Delete(id int) error
+	Authenticate(username, password string) (*models.User, error)
+}
+
 // UserService handles user-related business logic
 type UserService struct {
-	db     *database.DB
+	db     database.DBInterface
 	logger *zap.Logger
 }
 
 // NewUserService creates a new user service
-func NewUserService(db *database.DB, logger *zap.Logger) *UserService {
+func NewUserService(db database.DBInterface, logger *zap.Logger) *UserService {
 	return &UserService{
 		db:     db,
 		logger: logger,
@@ -90,7 +101,7 @@ func (s *UserService) Create(req *models.CreateUserRequest) (*models.User, error
 func (s *UserService) GetByID(id int) (*models.User, error) {
 	var user models.User
 	query := `SELECT * FROM users WHERE id = $1`
-	
+
 	err := s.db.Get(&user, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -107,7 +118,7 @@ func (s *UserService) GetByID(id int) (*models.User, error) {
 func (s *UserService) GetByUsername(username string) (*models.User, error) {
 	var user models.User
 	query := `SELECT * FROM users WHERE username = $1`
-	
+
 	err := s.db.Get(&user, query, username)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -124,7 +135,7 @@ func (s *UserService) GetByUsername(username string) (*models.User, error) {
 func (s *UserService) GetByEmail(email string) (*models.User, error) {
 	var user models.User
 	query := `SELECT * FROM users WHERE email = $1`
-	
+
 	err := s.db.Get(&user, query, email)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -143,7 +154,7 @@ func (s *UserService) List(filter *models.UserFilter, pagination *database.Pagin
 
 	// Build query with filters
 	whereClause, args := s.buildWhereClause(filter)
-	
+
 	// Count total records
 	countQuery := "SELECT COUNT(*) FROM users" + whereClause
 	var total int
@@ -239,7 +250,7 @@ func (s *UserService) Update(id int, req *models.UpdateUserRequest) (*models.Use
 // Delete deletes a user
 func (s *UserService) Delete(id int) error {
 	query := `DELETE FROM users WHERE id = $1`
-	
+
 	result, err := s.db.Exec(query, id)
 	if err != nil {
 		s.logger.Error("Failed to delete user", zap.Error(err), zap.Int("user_id", id))

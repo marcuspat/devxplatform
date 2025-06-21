@@ -2,11 +2,13 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: api-service-pdb
+  labels:
+    app: api-service
+    component: pdb
 spec:
   selector:
     matchLabels:
       app: api-service
   # Ensure high availability - always keep majority running
   minAvailable: 51%
-  # Alternative: maxUnavailable: 1
   unhealthyPodEvictionPolicy: AlwaysAllow

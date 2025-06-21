@@ -185,7 +185,7 @@ export class HealthServiceImplementation {
     
     try {
       const fs = require('fs');
-      const stats = fs.statSync(process.cwd());
+      const _stats = fs.statSync(process.cwd());
       
       // Simplified disk check (in real implementation, check available space)
       result.setHealthy(true);

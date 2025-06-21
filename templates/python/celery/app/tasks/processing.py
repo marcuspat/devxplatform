@@ -256,8 +256,8 @@ def fetch_and_process(
         )
         
         # Fetch data
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers or {})
+        with httpx.Client() as client:
+            response = client.get(url, headers=headers or {})
             response.raise_for_status()
             
             if response.headers.get('content-type', '').startswith('application/json'):

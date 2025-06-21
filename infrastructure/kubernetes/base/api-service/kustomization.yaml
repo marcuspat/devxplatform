@@ -1,26 +1,24 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: default
-
 resources:
+  - serviceaccount.yaml
+  - configmap.yaml
   - deployment.yaml
   - service.yaml
-  - configmap.yaml
-  - secret.yaml
+  - ingress.yaml
 
-commonLabels:
-  app.kubernetes.io/component: api
-  app.kubernetes.io/part-of: platform
+labels:
+  - pairs:
+      app: api-service
+      app.kubernetes.io/name: api-service
+      app.kubernetes.io/component: api
+      app.kubernetes.io/part-of: devx-platform
 
-configMapGenerator:
-  - name: api-config
-    behavior: merge
-    files:
-      - config/application.yaml
-
-secretGenerator:
-  - name: api-secrets
-    behavior: merge
-    envs:
-      - secrets/.env.secret
+commonAnnotations:
+  app.kubernetes.io/managed-by: kustomize
+  
+images:
+  - name: devx-platform/api
+    newName: devx-platform/api
+    newTag: latest

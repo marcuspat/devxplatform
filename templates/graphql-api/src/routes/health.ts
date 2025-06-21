@@ -22,7 +22,7 @@ interface HealthCheckResult {
 }
 
 // Liveness probe - basic health check
-healthRouter.get('/live', (req: Request, res: Response) => {
+healthRouter.get('/live', (_req: Request, res: Response) => {
   res.status(StatusCodes.OK).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -30,7 +30,7 @@ healthRouter.get('/live', (req: Request, res: Response) => {
 });
 
 // Readiness probe - detailed health check
-healthRouter.get('/ready', async (req: Request, res: Response) => {
+healthRouter.get('/ready', async (_req: Request, res: Response) => {
   const startTime = Date.now();
   const checks: Record<string, HealthCheckResult> = {};
   
@@ -93,7 +93,7 @@ healthRouter.get('/ready', async (req: Request, res: Response) => {
 });
 
 // Detailed health information
-healthRouter.get('/', async (req: Request, res: Response) => {
+healthRouter.get('/', async (_req: Request, res: Response) => {
   const health = {
     status: 'healthy',
     timestamp: new Date().toISOString(),

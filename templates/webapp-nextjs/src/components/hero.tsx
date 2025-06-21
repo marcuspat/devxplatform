@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, GitHub, Star } from 'lucide-react';
+import { ArrowRight, Github, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function Hero() {
@@ -34,7 +34,7 @@ export function Hero() {
           </Button>
           <Button variant="outline" size="lg" asChild>
             <Link href="https://github.com" target="_blank">
-              <GitHub className="mr-2 h-4 w-4" />
+              <Github className="mr-2 h-4 w-4" />
               View on GitHub
             </Link>
           </Button>

@@ -12,12 +12,12 @@ import (
 
 // HealthHandler handles health check requests
 type HealthHandler struct {
-	db     *database.DB
+	db     database.DBInterface
 	logger *zap.Logger
 }
 
 // NewHealthHandler creates a new health handler
-func NewHealthHandler(db *database.DB, logger *zap.Logger) *HealthHandler {
+func NewHealthHandler(db database.DBInterface, logger *zap.Logger) *HealthHandler {
 	return &HealthHandler{
 		db:     db,
 		logger: logger,

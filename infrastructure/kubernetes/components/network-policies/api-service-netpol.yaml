@@ -2,6 +2,9 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: api-service-network-policy
+  labels:
+    app: api-service
+    component: network-policy
 spec:
   podSelector:
     matchLabels:
@@ -18,9 +21,17 @@ spec:
       podSelector:
         matchLabels:
           app.kubernetes.io/name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+      podSelector:
+        matchLabels:
+          app: istio-ingressgateway
     ports:
     - protocol: TCP
-      port: 8080
+      port: 3000
+    - protocol: TCP
+      port: 8443  # HTTPS port
   # Allow traffic from other API services
   - from:
     - podSelector:
@@ -28,7 +39,7 @@ spec:
           tier: backend
     ports:
     - protocol: TCP
-      port: 8080
+      port: 3000
   # Allow Prometheus scraping
   - from:
     - namespaceSelector:
@@ -79,4 +90,23 @@ spec:
           tier: backend
     ports:
     - protocol: TCP
-      port: 8080
+      port: 3000
+  # Allow access to message queues
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: messaging
+      podSelector:
+        matchLabels:
+          app: rabbitmq
+    ports:
+    - protocol: TCP
+      port: 5672
+  # Allow access to external APIs (with restrictions)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80

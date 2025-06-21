@@ -15,6 +15,7 @@ import (
 	"gin-service/internal/database"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // @title Gin REST API
@@ -136,7 +137,7 @@ func initLogger(cfg *config.Config) (*zap.Logger, error) {
 	return logger, nil
 }
 
-func parseLogLevel(level string) zap.Level {
+func parseLogLevel(level string) zapcore.Level {
 	switch level {
 	case "debug":
 		return zap.DebugLevel

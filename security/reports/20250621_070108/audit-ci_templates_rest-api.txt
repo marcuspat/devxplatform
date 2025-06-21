@@ -1,0 +1,23 @@
+[36mNPM audit report results:[0m
+{
+  "advisories": {},
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "dependencies": {
+      "prod": 169,
+      "dev": 425,
+      "optional": 1,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 593
+    }
+  }
+}
+[32mPassed npm security audit.[0m

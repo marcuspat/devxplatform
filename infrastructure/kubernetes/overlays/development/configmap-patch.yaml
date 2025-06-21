@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  # Override for development
+  LOG_LEVEL: "DEBUG"
+  NODE_ENV: "development"
+  ENVIRONMENT: "development"
+  ENABLE_DEBUG_ENDPOINTS: "true"
+  
+  # Development-specific settings
+  RATE_LIMIT_ENABLED: "false"
+  CORS_ALLOWED_ORIGINS: "http://localhost:*"
+  
+  # Override application.yaml
+  application.yaml: |
+    server:
+      port: 3000
+      gracefulShutdownTimeout: 10s
+    
+    logging:
+      level: DEBUG
+      format: pretty
+    
+    metrics:
+      enabled: true
+      port: 9090
+      path: /metrics
+    
+    cache:
+      type: memory  # Use in-memory cache for dev
+      ttl: 300
+    
+    rateLimit:
+      enabled: false
+    
+    cors:
+      enabled: true
+      allowedOrigins:
+        - "http://localhost:3000"
+        - "http://localhost:3001"
+        - "http://localhost:8080"
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allowedHeaders:
+        - Authorization
+        - Content-Type
+        - X-Request-ID
+    
+    debug:
+      enabled: true
+      endpoints:
+        - /debug/pprof
+        - /debug/vars
+        - /debug/requests

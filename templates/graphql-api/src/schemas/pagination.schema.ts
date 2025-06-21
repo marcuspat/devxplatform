@@ -28,7 +28,7 @@ export function PaginatedResponse<T>(ItemClass: ClassType<T>) {
   return PaginatedResponseClass;
 }
 
-export type PaginatedResponse<T> = {
+export type PaginatedResult<T> = {
   items: T[];
   total: number;
   hasMore: boolean;

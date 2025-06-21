@@ -2,8 +2,8 @@ import * as grpc from '@grpc/grpc-js';
 import { logger } from '../utils/logger';
 import { config } from '../config';
 
-export const errorInterceptor: grpc.ServerInterceptor = (call, callback, next) => {
-  const wrappedCallback = (error: grpc.ServiceError | null, value?: any) => {
+export const errorInterceptor = (call: any, callback: any, next: any) => {
+  const wrappedCallback = (error: any, value?: any) => {
     if (error) {
       const requestId = call.metadata.get('x-request-id')[0] as string;
       
@@ -26,6 +26,8 @@ export const errorInterceptor: grpc.ServerInterceptor = (call, callback, next) =
           code: error.code,
           message: getSanitizedErrorMessage(error),
           name: error.name,
+          details: getSanitizedErrorMessage(error),
+          metadata: new grpc.Metadata(),
         };
         
         callback(sanitizedError);
@@ -52,6 +54,10 @@ export const errorInterceptor: grpc.ServerInterceptor = (call, callback, next) =
         ? 'Internal server error' 
         : `Uncaught error: ${uncaughtError}`,
       name: 'InternalError',
+      details: config.isProduction 
+        ? 'Internal server error' 
+        : `Uncaught error: ${uncaughtError}`,
+      metadata: new grpc.Metadata(),
     };
 
     callback(serviceError);

@@ -8,12 +8,24 @@ import {
   FieldResolver,
   Root,
   Args,
-  Int,
 } from 'type-graphql';
 import { User, CreateUserInput, UpdateUserInput, LoginInput, AuthResponse } from '../schemas/user.schema';
 import { Context } from '../types/context';
-import { PaginationArgs, PaginatedResponse } from '../schemas/pagination.schema';
+import { PaginationArgs } from '../schemas/pagination.schema';
 import { signToken } from '../auth/jwt';
+import { ObjectType, Field, Int } from 'type-graphql';
+
+@ObjectType()
+class PaginatedUsers {
+  @Field(() => [User])
+  items: User[];
+
+  @Field(() => Int)
+  total: number;
+
+  @Field()
+  hasMore: boolean;
+}
 
 // Example in-memory storage (replace with actual database)
 const users = new Map<string, User>();
@@ -26,8 +38,8 @@ export class UserResolver {
     return ctx.loaders.userLoader.load(id);
   }
 
-  @Query(() => PaginatedResponse(User))
-  async users(@Args() { limit, offset }: PaginationArgs): Promise<PaginatedResponse<User>> {
+  @Query(() => PaginatedUsers)
+  async users(@Args() { limit, offset }: PaginationArgs): Promise<PaginatedUsers> {
     const allUsers = Array.from(users.values());
     const total = allUsers.length;
     const items = allUsers.slice(offset, offset + limit);

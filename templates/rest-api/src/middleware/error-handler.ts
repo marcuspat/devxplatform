@@ -4,10 +4,12 @@ import { logger } from '../utils/logger';
 import { config } from '../config';
 import { v4 as uuidv4 } from 'uuid';
 
+export type ErrorDetails = Record<string, unknown> | string | null;
+
 export interface ApiError extends Error {
   statusCode?: number;
   code?: string;
-  details?: any;
+  details?: ErrorDetails;
   isOperational?: boolean;
 }
 
@@ -16,7 +18,7 @@ export class AppError extends Error implements ApiError {
     public message: string,
     public statusCode: number = StatusCodes.INTERNAL_SERVER_ERROR,
     public code?: string,
-    public details?: any,
+    public details?: ErrorDetails,
     public isOperational: boolean = true
   ) {
     super(message);
@@ -29,10 +31,10 @@ export function errorHandler(
   err: ApiError,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void {
   const errorId = uuidv4();
-  const statusCode = err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR;
+  const statusCode = err.statusCode ?? StatusCodes.INTERNAL_SERVER_ERROR;
   const isOperational = err.isOperational ?? false;
 
   // Log error
@@ -44,9 +46,9 @@ export function errorHandler(
     stack: err.stack,
     url: req.url,
     method: req.method,
-    ip: req.ip,
+    ip: req.ip ?? 'unknown',
     headers: req.headers,
-    body: req.body,
+    body: req.body as unknown,
     isOperational,
   });
 
@@ -57,7 +59,7 @@ export function errorHandler(
         id: errorId,
         code: 'VALIDATION_ERROR',
         message: 'Request validation failed',
-        details: err.details || err.message,
+        details: err.details ?? err.message,
       },
     });
     return;
@@ -67,7 +69,7 @@ export function errorHandler(
   const response = {
     error: {
       id: errorId,
-      code: err.code || 'INTERNAL_ERROR',
+      code: err.code ?? 'INTERNAL_ERROR',
       message: config.isProduction && !isOperational 
         ? 'An error occurred processing your request' 
         : err.message,

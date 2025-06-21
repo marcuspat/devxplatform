@@ -1,7 +1,26 @@
 import Joi from 'joi';
 
+// Interface for validated environment variables
+interface ValidatedEnv {
+  NODE_ENV: 'development' | 'production' | 'test' | 'staging';
+  PORT: number;
+  LOG_LEVEL: 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly';
+  CORS_ORIGIN: string;
+  RATE_LIMIT_WINDOW_MS: number;
+  RATE_LIMIT_MAX: number;
+  BODY_LIMIT: string;
+  SHUTDOWN_TIMEOUT_MS: number;
+  DATABASE_URL?: string;
+  DATABASE_POOL_SIZE: number;
+  JWT_SECRET: string;
+  JWT_EXPIRY: string;
+  REDIS_URL?: string;
+  SENTRY_DSN?: string;
+  NEW_RELIC_LICENSE_KEY?: string;
+}
+
 // Environment variable validation schema
-const envSchema = Joi.object({
+const envSchema = Joi.object<ValidatedEnv>({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test', 'staging')
     .default('development'),
@@ -36,10 +55,18 @@ const envSchema = Joi.object({
 }).unknown();
 
 // Validate environment variables
-const { error, value: validatedEnv } = envSchema.validate(process.env);
+const { error, value: validatedEnv } = envSchema.validate(process.env) as {
+  error?: Error;
+  value?: ValidatedEnv;
+};
 
 if (error) {
   throw new Error(`Config validation error: ${error.message}`);
+}
+
+// Ensure we have a valid environment object
+if (!validatedEnv) {
+  throw new Error('Environment validation failed');
 }
 
 export const config = {

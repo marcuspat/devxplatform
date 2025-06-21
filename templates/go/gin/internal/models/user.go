@@ -10,15 +10,15 @@ import (
 
 // User represents a user in the system
 type User struct {
-	ID        int       `json:"id" db:"id"`
-	Username  string    `json:"username" db:"username" binding:"required,min=3,max=50"`
-	Email     string    `json:"email" db:"email" binding:"required,email"`
-	Password  string    `json:"-" db:"password_hash"`
-	FullName  *string   `json:"full_name,omitempty" db:"full_name"`
-	IsActive  bool      `json:"is_active" db:"is_active"`
-	IsAdmin   bool      `json:"is_admin" db:"is_admin"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID        int        `json:"id" db:"id"`
+	Username  string     `json:"username" db:"username" binding:"required,min=3,max=50"`
+	Email     string     `json:"email" db:"email" binding:"required,email"`
+	Password  string     `json:"-" db:"password_hash"`
+	FullName  *string    `json:"full_name,omitempty" db:"full_name"`
+	IsActive  bool       `json:"is_active" db:"is_active"`
+	IsAdmin   bool       `json:"is_admin" db:"is_admin"`
+	CreatedAt time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
 	LastLogin *time.Time `json:"last_login,omitempty" db:"last_login"`
 }
 
@@ -47,8 +47,8 @@ type LoginRequest struct {
 
 // LoginResponse represents the response payload for user login
 type LoginResponse struct {
-	User  *User  `json:"user"`
-	Token string `json:"token"`
+	User  *UserResponse `json:"user"`
+	Token string        `json:"token"`
 }
 
 // UserResponse represents a user response without sensitive data
@@ -118,8 +118,8 @@ func (u *User) TableName() string {
 type Status string
 
 const (
-	StatusActive   Status = "active"
-	StatusInactive Status = "inactive"
+	StatusActive    Status = "active"
+	StatusInactive  Status = "inactive"
 	StatusSuspended Status = "suspended"
 )
 

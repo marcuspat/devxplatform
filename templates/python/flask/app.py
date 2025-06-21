@@ -2,6 +2,12 @@
 Flask application entry point
 """
 import os
+import sys
+
+# Ensure the app module can be imported when running this file directly
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from app import create_app, db
 from app.models import User
 

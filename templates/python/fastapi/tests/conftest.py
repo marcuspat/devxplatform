@@ -1,28 +1,33 @@
 """
 Test configuration and fixtures
 """
+
 import asyncio
+import os
+import sys
 from typing import AsyncGenerator, Generator
+
+# Add the parent directory to sys.path so we can import the app module
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.database import Base, get_db
-from app.config import settings
 from main import app
 
 # Test database URL
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 # Create test engine
-test_engine = create_async_engine(
-    TEST_DATABASE_URL,
-    echo=False,
-    future=True
-)
+test_engine = create_async_engine(TEST_DATABASE_URL, echo=False, future=True)
 
 # Create test session factory
 TestSessionLocal = async_sessionmaker(
@@ -30,7 +35,7 @@ TestSessionLocal = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
     autocommit=False,
-    autoflush=False
+    autoflush=False,
 )
 
 
@@ -47,10 +52,10 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """Create a test database session"""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     async with TestSessionLocal() as session:
         yield session
-    
+
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
@@ -58,9 +63,10 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture(scope="function")
 def override_get_db(db_session: AsyncSession):
     """Override the get_db dependency"""
+
     async def _override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = _override_get_db
     yield
     app.dependency_overrides.clear()

@@ -63,12 +63,12 @@ type LogConfig struct {
 
 // CORSConfig holds CORS configuration
 type CORSConfig struct {
-	AllowedOrigins []string `mapstructure:"allowed_origins"`
-	AllowedMethods []string `mapstructure:"allowed_methods"`
-	AllowedHeaders []string `mapstructure:"allowed_headers"`
-	ExposedHeaders []string `mapstructure:"exposed_headers"`
-	AllowedCredentials bool `mapstructure:"allowed_credentials"`
-	MaxAge         int    `mapstructure:"max_age"`
+	AllowedOrigins     []string `mapstructure:"allowed_origins"`
+	AllowedMethods     []string `mapstructure:"allowed_methods"`
+	AllowedHeaders     []string `mapstructure:"allowed_headers"`
+	ExposedHeaders     []string `mapstructure:"exposed_headers"`
+	AllowedCredentials bool     `mapstructure:"allowed_credentials"`
+	MaxAge             int      `mapstructure:"max_age"`
 }
 
 // RateConfig holds rate limiting configuration

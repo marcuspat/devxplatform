@@ -10,7 +10,6 @@ import (
 	"gin-service/internal/config"
 
 	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"

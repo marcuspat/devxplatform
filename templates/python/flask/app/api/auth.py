@@ -4,7 +4,7 @@ Authentication endpoints
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import (
     jwt_required, get_jwt_identity, 
-    create_access_token, create_refresh_token
+    create_access_token
 )
 from marshmallow import ValidationError
 

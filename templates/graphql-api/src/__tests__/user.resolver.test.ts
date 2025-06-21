@@ -49,7 +49,7 @@ describe('UserResolver', () => {
 
       expect(result.errors).toBeUndefined();
       expect(result.data?.users).toBeDefined();
-      expect(result.data?.users.items).toBeInstanceOf(Array);
+      expect((result.data as any)?.users.items).toBeInstanceOf(Array);
     });
   });
 
@@ -82,8 +82,8 @@ describe('UserResolver', () => {
 
       expect(result.errors).toBeUndefined();
       expect(result.data?.register).toBeDefined();
-      expect(result.data?.register.user.email).toBe('test@example.com');
-      expect(result.data?.register.token).toBeTruthy();
+      expect((result.data as any)?.register.user.email).toBe('test@example.com');
+      expect((result.data as any)?.register.token).toBeTruthy();
     });
   });
 });

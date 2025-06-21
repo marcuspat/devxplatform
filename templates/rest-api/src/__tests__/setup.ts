@@ -23,3 +23,10 @@ jest.mock('../utils/logger', () => ({
 
 // Increase timeout for integration tests
 jest.setTimeout(10000);
+
+// Add a simple test to satisfy Jest requirements
+describe('Test Setup', () => {
+  it('should setup test environment correctly', () => {
+    expect(process.env.NODE_ENV).toBe('test');
+  });
+});

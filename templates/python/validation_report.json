@@ -1,0 +1,104 @@
+[
+  {
+    "template": "FastAPI",
+    "path": "/Users/mp/Documents/Code/claude-code/projects/devxplatform/templates/python/fastapi",
+    "checks": {
+      "init_files": {
+        "status": "pass",
+        "files": [
+          "app/__init__.py",
+          "app/middleware/__init__.py",
+          "app/repositories/__init__.py",
+          "app/models/__init__.py",
+          "app/schemas/__init__.py",
+          "app/api/__init__.py",
+          "app/api/v1/__init__.py",
+          "app/services/__init__.py",
+          "tests/__init__.py"
+        ]
+      },
+      "requirements": {
+        "status": "pass",
+        "count": 20
+      },
+      "syntax": {
+        "status": "pass",
+        "errors": []
+      },
+      "imports": {
+        "status": "tested",
+        "output": "Testing FastAPI template imports...\n==================================================\nTesting: from app.config import settings\n\u2717 ERROR: app.config - No module named 'pydantic'\n\nTesting: from app.database import init_db, close_db_connections\n\u2717 ERROR: app.database - No module named 'sqlalchemy'\n\nTesting: from app.exceptions import ServiceException\n\u2713 SUCCESS: app.exceptions\n\nTesting: from app.middleware import LoggingMiddleware, TimingMiddleware\n\u2717 ERROR: app.middleware - No module named 'structlog'\n\nTesting: from app.redis import init_redis_pool, close_redis_pool\n\u2717 ERROR: app.redis - No module named 'redis'\n\nTesting: from app.api import router\n\u2717 ERROR: app.api - No module named 'fastapi'\n\nTesting: from app.api.v1 import auth, health, users\n\u2717 ERROR: app.api.v1 modules - No module named 'fastapi'\n\n==================================================\nImport test complete!\n"
+      },
+      "dockerfile": {
+        "status": "pass"
+      }
+    }
+  },
+  {
+    "template": "Flask",
+    "path": "/Users/mp/Documents/Code/claude-code/projects/devxplatform/templates/python/flask",
+    "checks": {
+      "init_files": {
+        "status": "pass",
+        "files": [
+          "app/__init__.py",
+          "app/utils/__init__.py",
+          "app/models/__init__.py",
+          "app/schemas/__init__.py",
+          "app/api/__init__.py",
+          "tests/__init__.py"
+        ]
+      },
+      "requirements": {
+        "status": "pass",
+        "count": 21
+      },
+      "syntax": {
+        "status": "pass",
+        "errors": []
+      },
+      "imports": {
+        "status": "tested",
+        "output": "Testing Flask template imports...\n==================================================\nTesting: from app import create_app, db\n\u2717 ERROR: app - No module named 'structlog'\n\nTesting: from app.models import User\n\u2717 ERROR: app.models.User - No module named 'structlog'\n\nTesting: from app.config import Config\n\u2717 ERROR: app.config - No module named 'structlog'\n\nTesting: from app.exceptions import APIException\n\u2717 ERROR: app.exceptions - No module named 'structlog'\n\nTesting: from app.api.health import health_bp\n\u2717 ERROR: app.api.health - No module named 'structlog'\n\nTesting: from app.api.auth import auth_bp\n\u2717 ERROR: app.api.auth - No module named 'structlog'\n\nTesting: from app.api.users import users_bp\n\u2717 ERROR: app.api.users - No module named 'structlog'\n\n==================================================\nImport test complete!\n"
+      },
+      "dockerfile": {
+        "status": "pass"
+      }
+    }
+  },
+  {
+    "template": "Celery",
+    "path": "/Users/mp/Documents/Code/claude-code/projects/devxplatform/templates/python/celery",
+    "checks": {
+      "init_files": {
+        "status": "pass",
+        "files": [
+          "app/__init__.py",
+          "app/tasks/__init__.py",
+          "app/utils/__init__.py",
+          "app/monitoring/__init__.py"
+        ]
+      },
+      "requirements": {
+        "status": "pass",
+        "count": 20
+      },
+      "syntax": {
+        "status": "fail",
+        "errors": [
+          {
+            "file": "app/tasks/processing.py",
+            "error": "  File \"/Users/mp/Documents/Code/claude-code/projects/devxplatform/templates/python/celery/app/tasks/processing.py\", line 259\n    async with httpx.AsyncClient() as client:\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nSyntaxError: 'async with' outside async function\n"
+          }
+        ]
+      },
+      "imports": {
+        "status": "tested",
+        "output": "Testing Celery template imports...\n==================================================\nTesting: from app.celery_app import celery\n\u2717 ERROR: app.celery_app - No module named 'celery'\n\nTesting: from app.config import settings\n\u2717 ERROR: app.config - No module named 'celery'\n\nTesting: from app.utils.monitoring import setup_prometheus_server, MetricsCollector\n\u2717 ERROR: app.utils.monitoring - No module named 'celery'\n\nTesting: from app.tasks import email, maintenance, monitoring, processing\n\u2717 ERROR: app.tasks modules - No module named 'celery'\n\nTesting: from app.utils.retry import RetryHandler\n\u2717 ERROR: app.utils.retry - No module named 'celery'\n\n==================================================\nImport test complete!\n"
+      },
+      "dockerfile": {
+        "status": "pass"
+      }
+    }
+  }
+]

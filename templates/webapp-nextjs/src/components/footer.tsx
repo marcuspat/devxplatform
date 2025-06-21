@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { GitHub, Twitter, LinkedIn } from 'lucide-react';
+import { Github, Twitter, Linkedin } from 'lucide-react';
 
 const footerNavigation = {
   main: [
@@ -23,7 +23,7 @@ const footerNavigation = {
     {
       name: 'GitHub',
       href: 'https://github.com',
-      icon: GitHub,
+      icon: Github,
     },
     {
       name: 'Twitter',
@@ -33,7 +33,7 @@ const footerNavigation = {
     {
       name: 'LinkedIn',
       href: 'https://linkedin.com',
-      icon: LinkedIn,
+      icon: Linkedin,
     },
   ],
 };

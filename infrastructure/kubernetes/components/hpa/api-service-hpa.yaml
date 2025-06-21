@@ -2,6 +2,9 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: api-service-hpa
+  labels:
+    app: api-service
+    component: hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -72,3 +75,5 @@ spec:
         value: 4
         periodSeconds: 30
       selectPolicy: Max
+  # Ensure pods are properly distributed
+  targetCPUUtilizationPercentage: 70 # Fallback for older clusters

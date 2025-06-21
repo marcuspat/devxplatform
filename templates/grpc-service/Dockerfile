@@ -1,30 +1,15 @@
 # Build stage
 FROM node:18-alpine AS builder
 
-# Install protobuf compiler
-RUN apk add --no-cache protobuf protobuf-dev
-
 WORKDIR /app
 
-# Copy package files
+# Copy package files and pre-built application
 COPY package*.json ./
-COPY tsconfig.json ./
-
-# Copy proto files
+COPY dist ./dist
 COPY proto ./proto
 
-# Install dependencies
-RUN npm ci
-
-# Generate protobuf code
-RUN npm run proto:generate
-
-# Copy source code
-COPY src ./src
-
-# Build TypeScript
-RUN npm run build && \
-    npm prune --production
+# Install only production dependencies
+RUN npm ci --production
 
 # Runtime stage
 FROM node:18-alpine

@@ -5,15 +5,20 @@ metadata:
   labels:
     app: api-service
     prometheus: kube-prometheus
+    component: monitoring
 spec:
   selector:
     matchLabels:
       app: api-service
+  namespaceSelector:
+    any: true
   endpoints:
   - port: metrics
     interval: 30s
     path: /metrics
     scheme: http
+    scrapeTimeout: 10s
+    honorLabels: true
     relabelings:
     - sourceLabels: [__meta_kubernetes_pod_label_version]
       targetLabel: version
@@ -21,7 +26,23 @@ spec:
       targetLabel: pod
     - sourceLabels: [__meta_kubernetes_pod_node_name]
       targetLabel: node
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: namespace
+    - sourceLabels: [__meta_kubernetes_pod_container_name]
+      targetLabel: container
     metricRelabelings:
+    # Drop unnecessary Go runtime metrics
     - sourceLabels: [__name__]
-      regex: '(go_.*|process_.*)'
+      regex: 'go_(memstats_|gc_|info).*'
       action: drop
+    # Drop process metrics except key ones
+    - sourceLabels: [__name__]
+      regex: 'process_(cpu_seconds_total|resident_memory_bytes|virtual_memory_bytes|start_time_seconds)'
+      action: keep
+    # Label HTTP metrics with status code classes
+    - sourceLabels: [__name__, code]
+      regex: 'http_request_duration_seconds.*;([0-9])[0-9][0-9]'
+      targetLabel: status_class
+      replacement: '${1}xx'
+  # Job label for federation
+  jobLabel: api-service

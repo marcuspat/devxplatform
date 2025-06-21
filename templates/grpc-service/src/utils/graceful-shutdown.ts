@@ -7,7 +7,7 @@ export function gracefulShutdown(server: grpc.Server): void {
     
     try {
       // Try graceful shutdown first
-      await new Promise<void>((resolve, reject) => {
+      await new Promise<void>((resolve, _reject) => {
         server.tryShutdown((error) => {
           if (error) {
             logger.warn('Graceful shutdown failed, forcing shutdown:', error);
@@ -34,17 +34,17 @@ export function gracefulShutdown(server: grpc.Server): void {
   };
   
   // Handle termination signals
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
   
   // Handle uncaught errors
   process.on('uncaughtException', (error) => {
     logger.error('Uncaught Exception:', error);
-    shutdown('uncaughtException');
+    void shutdown('uncaughtException');
   });
   
   process.on('unhandledRejection', (reason, promise) => {
     logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    shutdown('unhandledRejection');
+    void shutdown('unhandledRejection');
   });
 }

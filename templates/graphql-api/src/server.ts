@@ -6,7 +6,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import depthLimit from 'graphql-depth-limit';
-import costAnalysis from 'graphql-query-complexity';
+import costAnalysisRule from 'graphql-query-complexity';
 import { Server } from 'http';
 
 import { config } from './config';
@@ -14,7 +14,7 @@ import { logger } from './utils/logger';
 import { requestLogger } from './middleware/request-logger';
 import { healthRouter } from './routes/health';
 import { authChecker } from './auth/auth-checker';
-import { Context } from './types/context';
+// Removed unused Context import
 import { createContext } from './utils/context';
 
 // Import resolvers
@@ -71,7 +71,7 @@ export async function createServer(): Promise<{ app: Express; httpServer: Server
     emitSchemaFile: config.isDevelopment
       ? {
           path: './schema.graphql',
-          commentDescriptions: true,
+          // commentDescriptions: true, // Removed unsupported option
           sortedSchema: true,
         }
       : false,
@@ -85,8 +85,8 @@ export async function createServer(): Promise<{ app: Express; httpServer: Server
     plugins: [
       {
         requestDidStart() {
-          return {
-            willSendResponse(requestContext) {
+          return Promise.resolve({
+            willSendResponse: async (requestContext: any) => {
               const { request, response } = requestContext;
               logger.info({
                 type: 'graphql',
@@ -97,24 +97,19 @@ export async function createServer(): Promise<{ app: Express; httpServer: Server
                 errors: response.errors,
               });
             },
-          };
+          });
         },
       },
     ],
     validationRules: [
       depthLimit(config.graphql.maxDepth),
-      costAnalysis({
-        maximumCost: config.graphql.maxComplexity,
-        defaultCost: 1,
-        scalarCost: 1,
-        objectCost: 2,
-        listFactor: 10,
-        introspectionCost: 1000,
-        createError: (max, actual) => {
-          return new Error(
-            `Query exceeded maximum complexity of ${max}. Actual complexity: ${actual}`
-          );
-        },
+      costAnalysisRule({
+        maximumComplexity: config.graphql.maxComplexity,
+        estimators: [
+          // Default estimators
+          require('graphql-query-complexity').fieldExtensionsEstimator(),
+          require('graphql-query-complexity').simpleEstimator({ defaultComplexity: 1 }),
+        ],
       }),
     ],
     formatError: (err) => {
@@ -127,7 +122,7 @@ export async function createServer(): Promise<{ app: Express; httpServer: Server
       });
 
       // Don't expose internal errors in production
-      if (config.isProduction && !err.extensions?.code?.startsWith('GRAPHQL_')) {
+      if (config.isProduction && !(err.extensions?.code as string)?.startsWith('GRAPHQL_')) {
         return new Error('Internal server error');
       }
 
@@ -140,12 +135,12 @@ export async function createServer(): Promise<{ app: Express; httpServer: Server
 
   // Apply Apollo middleware
   apolloServer.applyMiddleware({
-    app,
+    app: app as any,
     path: '/graphql',
     cors: false, // Using Express CORS
   });
 
-  const httpServer = app.listen({ port: 0 }); // Port 0 to let OS assign
+  const httpServer = require('http').createServer(app);
 
   logger.info('GraphQL server initialized successfully');
   

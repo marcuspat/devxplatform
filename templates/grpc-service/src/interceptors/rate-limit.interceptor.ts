@@ -16,7 +16,7 @@ const EXEMPT_METHODS = [
   '/health.Health/Watch',
 ];
 
-export const rateLimitInterceptor: grpc.ServerInterceptor = (call, callback, next) => {
+export const rateLimitInterceptor = (call: any, callback: any, next: any) => {
   const methodName = call.getPath();
   
   // Skip rate limiting for exempt methods
@@ -68,6 +68,7 @@ export const rateLimitInterceptor: grpc.ServerInterceptor = (call, callback, nex
       code: grpc.status.RESOURCE_EXHAUSTED,
       message: `Rate limit exceeded. Try again in ${retryAfter} seconds.`,
       name: 'RateLimitError',
+      details: `Rate limit exceeded. Try again in ${retryAfter} seconds.`,
       metadata,
     };
 
@@ -86,7 +87,7 @@ export const rateLimitInterceptor: grpc.ServerInterceptor = (call, callback, nex
   next(call, callback);
 };
 
-function extractClientIp(call: grpc.ServerUnaryCall<any, any> | grpc.ServerWritableStream<any, any> | grpc.ServerReadableStream<any, any>): string {
+function extractClientIp(call: any): string {
   // Extract IP from peer information
   const peer = call.getPeer();
   

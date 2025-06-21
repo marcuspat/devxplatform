@@ -1,6 +1,12 @@
 """
 Test configuration and fixtures
 """
+import os
+import sys
+
+# Add the parent directory to sys.path so we can import the app module
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import pytest
 from app import create_app, db
 from app.models import User
