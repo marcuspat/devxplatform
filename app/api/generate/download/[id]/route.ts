@@ -662,7 +662,7 @@ postgresql_version  = "13"
 db_storage_mb      = 32768
 db_sku_name        = "GP_Standard_D2s_v3"
 db_admin_username  = "azureuser"
-db_admin_password  = "${DB_ADMIN_PASSWORD}"
+db_admin_password  = "\${DB_ADMIN_PASSWORD}"
 
 # Monitoring
 log_retention_days = 30
@@ -1908,7 +1908,7 @@ npm run test:coverage
    \`\`\`hcl
    environment = "production"
    location = "East US"
-   db_admin_password = "${DB_ADMIN_PASSWORD}"
+   db_admin_password = "\${DB_ADMIN_PASSWORD}"
    \`\`\`
 
 4. Plan deployment:
