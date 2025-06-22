@@ -239,9 +239,33 @@ export default function Home() {
   const openInIDE = async (ide: 'vscode' | 'cursor') => {
     if (!generationResult) return
     
+    // Show loading state
+    const loadingModal = document.createElement('div')
+    loadingModal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'
+    loadingModal.innerHTML = `
+      <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full">
+        <h3 class="text-xl font-bold text-white mb-4">Creating Project...</h3>
+        <div class="space-y-2 mb-4">
+          <p class="text-gray-300 text-sm">Downloading generated files...</p>
+          <p class="text-gray-300 text-sm">Creating project directory...</p>
+          <p class="text-gray-300 text-sm">Opening in ${ide.toUpperCase()}...</p>
+        </div>
+        <div class="w-full bg-gray-700 rounded-full h-2">
+          <div class="bg-blue-500 h-2 rounded-full animate-pulse" style="width: 75%"></div>
+        </div>
+      </div>
+    `
+    document.body.appendChild(loadingModal)
+    
     try {
-      // Call the IDE launch API
-      const response = await fetch('/api/generate/ide-launch', {
+      console.log(`Opening project in ${ide.toUpperCase()}:`, {
+        generationId: generationResult.generation.id,
+        projectName: generationResult.project.slug,
+        ide
+      })
+      
+      // First try the enhanced endpoint that auto-creates files
+      let response = await fetch('/api/generate/ide-launch-enhanced', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -253,49 +277,187 @@ export default function Home() {
         }),
       })
       
+      console.log(`Enhanced endpoint response: ${response.status} ${response.statusText}`)
+      
+      // If enhanced endpoint fails, fall back to basic endpoint
+      if (response.status === 404 || response.status >= 500) {
+        console.log('Enhanced endpoint failed, falling back to basic endpoint')
+        
+        response = await fetch('/api/generate/ide-launch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            generationId: generationResult.generation.id,
+            ide,
+            projectName: generationResult.project.slug,
+          }),
+        })
+        
+        console.log(`Basic endpoint response: ${response.status} ${response.statusText}`)
+      }
+      
+      // Remove loading modal
+      loadingModal.remove()
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('IDE launch response:', data)
         
         // Try to open the IDE
+        console.log(`Attempting to open ${ide.toUpperCase()} with URL: ${data.ideUrl}`)
         window.location.href = data.ideUrl
         
         // Show instructions modal after a delay
         setTimeout(() => {
           const modal = document.createElement('div')
           modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'
-          modal.innerHTML = `
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full">
-              <h3 class="text-xl font-bold text-white mb-4">${data.instructions.title}</h3>
-              <div class="space-y-2 mb-6">
-                ${data.instructions.steps.map((step: string) => `
-                  <p class="text-gray-300 text-sm">${step}</p>
-                `).join('')}
+          
+          // Different UI for enhanced vs basic response
+          if (data.filesCreated && data.filesCreated > 0) {
+            // Enhanced endpoint success - files were created
+            modal.innerHTML = `
+              <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-lg w-full">
+                <div class="flex items-center mb-4">
+                  <svg class="w-8 h-8 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <h3 class="text-xl font-bold text-white">Project Created Successfully!</h3>
+                </div>
+                <div class="space-y-2 mb-6">
+                  <p class="text-gray-300">✅ Created ${data.filesCreated} files</p>
+                  <p class="text-gray-300">📁 Location: <code class="bg-gray-700 px-2 py-1 rounded text-xs break-all">${data.localPath}</code></p>
+                  <p class="text-gray-300">🚀 ${ide.toUpperCase()} should open automatically</p>
+                  ${data.fileNames && data.fileNames.length > 0 ? `
+                    <details class="mt-3">
+                      <summary class="text-gray-400 text-sm cursor-pointer hover:text-gray-300">View created files (${data.fileNames.length})</summary>
+                      <div class="mt-2 bg-gray-900 rounded p-2 max-h-32 overflow-y-auto">
+                        ${data.fileNames.map((name: string) => `<div class="text-xs text-gray-400 font-mono">📄 ${name}</div>`).join('')}
+                      </div>
+                    </details>
+                  ` : ''}
+                </div>
+                <div class="bg-gray-700 border border-gray-600 rounded-lg p-3 mb-4">
+                  <p class="text-gray-400 text-sm">If ${ide.toUpperCase()} doesn't open:</p>
+                  <ol class="text-gray-300 text-sm mt-2 space-y-1">
+                    <li>1. Open ${ide.toUpperCase()} manually</li>
+                    <li>2. Select File → Open Folder</li>
+                    <li>3. Navigate to the path shown above</li>
+                  </ol>
+                </div>
+                <div class="flex gap-3">
+                  <button 
+                    onclick="this.closest('.fixed').remove()"
+                    class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex-1"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onclick="navigator.clipboard.writeText('${data.localPath}')"
+                    class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                    title="Copy path to clipboard"
+                  >
+                    📋 Copy Path
+                  </button>
+                </div>
               </div>
-              <div class="flex gap-3">
-                <button 
-                  onclick="this.closest('.fixed').remove()"
-                  class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex-1"
-                >
-                  Got it
-                </button>
-                <a 
-                  href="${data.instructions.fallbackUrl}"
-                  target="_blank"
-                  class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-center"
-                >
-                  Download ${ide.toUpperCase()}
-                </a>
+            `
+          } else {
+            // Basic endpoint - needs manual download
+            modal.innerHTML = `
+              <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full">
+                <h3 class="text-xl font-bold text-white mb-4">${data.instructions?.title || 'Manual Setup Required'}</h3>
+                <div class="space-y-2 mb-6">
+                  ${(data.instructions?.steps || ['Please download files manually and open in your IDE']).map((step: string) => `
+                    <p class="text-gray-300 text-sm">${step}</p>
+                  `).join('')}
+                </div>
+                <div class="flex gap-3">
+                  <button 
+                    onclick="(() => { 
+                      this.closest('.fixed').remove(); 
+                      document.querySelector('[data-download-button]')?.click();
+                    })()"
+                    class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex-1"
+                  >
+                    Download Files
+                  </button>
+                  <a 
+                    href="${data.instructions?.fallbackUrl || (ide === 'vscode' ? 'https://code.visualstudio.com/download' : 'https://cursor.sh/download')}"
+                    target="_blank"
+                    class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-center"
+                  >
+                    Get ${ide.toUpperCase()}
+                  </a>
+                </div>
               </div>
-            </div>
-          `
+            `
+          }
           document.body.appendChild(modal)
         }, 2000)
       } else {
-        setError(`Failed to open in ${ide.toUpperCase()}. Please download the files manually.`)
+        console.error('IDE launch failed:', response.status, response.statusText)
+        
+        let errorData
+        try {
+          errorData = await response.json()
+        } catch {
+          errorData = { error: 'Failed to parse error response', details: response.statusText }
+        }
+        
+        console.error('Error details:', errorData)
+        setError(`Failed to open in ${ide.toUpperCase()}: ${errorData.details || errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
+      // Remove loading modal
+      loadingModal.remove()
+      
       console.error(`${ide} launch failed:`, error)
-      setError(`Failed to open in ${ide.toUpperCase()}. Please download the files manually.`)
+      
+      // Show detailed error information
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      setError(`Failed to open in ${ide.toUpperCase()}: ${errorMessage}. Please download the files manually and open them in your IDE.`)
+      
+      // Show a manual fallback modal
+      setTimeout(() => {
+        const fallbackModal = document.createElement('div')
+        fallbackModal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'
+        fallbackModal.innerHTML = `
+          <div class="bg-gray-800 border border-red-500/30 rounded-xl p-6 max-w-md w-full">
+            <div class="flex items-center mb-4">
+              <svg class="w-8 h-8 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 15c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+              <h3 class="text-xl font-bold text-white">IDE Launch Failed</h3>
+            </div>
+            <div class="space-y-2 mb-6">
+              <p class="text-gray-300 text-sm">The automatic ${ide.toUpperCase()} launch failed. You can still access your project:</p>
+              <p class="text-gray-300 text-sm">1. Download the service files using the button below</p>
+              <p class="text-gray-300 text-sm">2. Extract the files to your desired location</p>
+              <p class="text-gray-300 text-sm">3. Open the folder in ${ide.toUpperCase()} manually</p>
+            </div>
+            <div class="flex gap-3">
+              <button 
+                onclick="(() => { 
+                  this.closest('.fixed').remove(); 
+                  document.querySelector('[data-download-button]')?.click();
+                })()"
+                class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex-1"
+              >
+                Download Files
+              </button>
+              <button 
+                onclick="this.closest('.fixed').remove()"
+                class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        `
+        document.body.appendChild(fallbackModal)
+      }, 1000)
     }
   }
 
@@ -638,6 +800,7 @@ npm run test:coverage
                 <div className="flex gap-4">
                   <button
                     onClick={downloadService}
+                    data-download-button
                     className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
                   >
                     📥 Download Documentation
