@@ -36,7 +36,8 @@ export default function Home() {
   const [apiKey, setApiKey] = useState<string>('')
   const [showApiKeyInput, setShowApiKeyInput] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [downloadFormat, setDownloadFormat] = useState<string>('text')
+  // MD-only download format
+  // Download format is now hardcoded to MD
 
   // Fetch templates from backend
   useEffect(() => {
@@ -234,18 +235,85 @@ export default function Home() {
     }
   }
 
+  // IDE Launch Functions
+  const openInIDE = async (ide: 'vscode' | 'cursor') => {
+    if (!generationResult) return
+    
+    try {
+      // Call the IDE launch API
+      const response = await fetch('/api/generate/ide-launch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          generationId: generationResult.generation.id,
+          ide,
+          projectName: generationResult.project.slug,
+        }),
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Try to open the IDE
+        window.location.href = data.ideUrl
+        
+        // Show instructions modal after a delay
+        setTimeout(() => {
+          const modal = document.createElement('div')
+          modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'
+          modal.innerHTML = `
+            <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full">
+              <h3 class="text-xl font-bold text-white mb-4">${data.instructions.title}</h3>
+              <div class="space-y-2 mb-6">
+                ${data.instructions.steps.map((step: string) => `
+                  <p class="text-gray-300 text-sm">${step}</p>
+                `).join('')}
+              </div>
+              <div class="flex gap-3">
+                <button 
+                  onclick="this.closest('.fixed').remove()"
+                  class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex-1"
+                >
+                  Got it
+                </button>
+                <a 
+                  href="${data.instructions.fallbackUrl}"
+                  target="_blank"
+                  class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-center"
+                >
+                  Download ${ide.toUpperCase()}
+                </a>
+              </div>
+            </div>
+          `
+          document.body.appendChild(modal)
+        }, 2000)
+      } else {
+        setError(`Failed to open in ${ide.toUpperCase()}. Please download the files manually.`)
+      }
+    } catch (error) {
+      console.error(`${ide} launch failed:`, error)
+      setError(`Failed to open in ${ide.toUpperCase()}. Please download the files manually.`)
+    }
+  }
+
+  const openInVSCode = () => openInIDE('vscode')
+  const openInCursor = () => openInIDE('cursor')
+
   const downloadService = async () => {
     if (!generationResult) return
 
     try {
-      // Try to download from the new multi-format endpoint
-      const downloadUrl = `/api/generate/download/${generationResult.generation.id}/${downloadFormat}`
+      // Download from the MD-only endpoint
+      const downloadUrl = `/api/generate/download/${generationResult.generation.id}`
       const response = await fetch(downloadUrl)
       
       if (response.ok) {
         // Get filename from Content-Disposition header
         const contentDisposition = response.headers.get('Content-Disposition')
-        let filename = `${generationResult.project.slug}.${downloadFormat === 'text' ? 'txt' : downloadFormat}`
+        let filename = `${generationResult.project.slug}.md`
         
         if (contentDisposition) {
           const filenameMatch = contentDisposition.match(/filename="(.+)"/)
@@ -263,41 +331,102 @@ export default function Home() {
         a.click()
         URL.revokeObjectURL(url)
       } else {
-        // Fallback to old method if new endpoint fails
+        // Fallback MD content if endpoint fails
         const content = `# ${generationResult.project.name}
 
-Generated with DevX Platform
+**Generated with DevX Platform** 🚀
 
-## Files Generated:
-${generationResult.generation.files_created.map(f => `- ${f}`).join('\n')}
+## 📋 Service Overview
 
-## Getting Started
+- **Service Name:** ${generationResult.project.name}
+- **Project Slug:** ${generationResult.project.slug}
+- **Generated:** ${new Date().toISOString()}
+- **Files Created:** ${generationResult.generation.files_created.length}
 
-1. Install dependencies:
+## 📁 Generated Files
+
+${generationResult.generation.files_created.map(f => `- 📄 \`${f}\``).join('\n')}
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- Docker
+- Git
+
+### Installation
+
+1. **Install dependencies:**
+   \`\`\`bash
    npm install
+   \`\`\`
 
-2. Start development:
+2. **Start development:**
+   \`\`\`bash
    npm run dev
+   \`\`\`
 
-3. Build for production:
+3. **Build for production:**
+   \`\`\`bash
    npm run build
+   \`\`\`
 
-## Deployment
+## 🐳 Deployment
 
-### Docker
+### Docker Deployment
+\`\`\`bash
 docker build -t ${generationResult.project.slug} .
 docker run -p 3000:3000 ${generationResult.project.slug}
+\`\`\`
 
-### Kubernetes
+### Kubernetes Deployment
+\`\`\`bash
 kubectl apply -f k8s/
+kubectl get pods -l app=${generationResult.project.slug}
+\`\`\`
 
-Generated on ${new Date().toISOString()}
+## 🔧 Configuration
+
+### Environment Variables
+- \`NODE_ENV\`: Environment (development/production)
+- \`PORT\`: Server port (default: 3000)
+- \`DATABASE_URL\`: Database connection string
+
+## 🧪 Testing
+
+\`\`\`bash
+# Run tests
+npm test
+
+# Run with coverage
+npm run test:coverage
+\`\`\`
+
+## 📚 Documentation
+
+- 📖 **API Docs:** Available at \`/api/docs\` when running
+- 🏥 **Health Check:** Available at \`/health\`
+- 📊 **Metrics:** Available at \`/metrics\`
+
+## 🤝 Support
+
+- 📧 **Issues:** Create issues in your repository
+- 💬 **Community:** Join our Slack channel
+- 📖 **Docs:** Visit https://docs.devx.platform
+
+---
+
+**🤖 Generated by DevX Platform v2.0**  
+*Enterprise Service Generator - Built for Production*
+
+> Extract the files above, follow the setup instructions, and deploy your production-ready service!
 `
-        const blob = new Blob([content], { type: 'text/plain' })
+        const blob = new Blob([content], { type: 'text/markdown' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `${generationResult.project.slug}.txt`
+        a.download = `${generationResult.project.slug}.md`
         a.click()
         URL.revokeObjectURL(url)
       }
@@ -489,53 +618,77 @@ Generated on ${new Date().toISOString()}
             </div>
 
             <div className="space-y-4">
-              {/* Download Format Selector */}
+              {/* Download Information */}
               <div>
-                <h4 className="text-white font-medium mb-2">Download Format:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {['text', 'json', 'yaml', 'hcl', 'py'].map((format) => (
-                    <button
-                      key={format}
-                      onClick={() => setDownloadFormat(format)}
-                      className={`px-3 py-1 rounded text-sm font-medium transition-all ${
-                        downloadFormat === format
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      }`}
-                    >
-                      {format.toUpperCase()}
-                      {format === 'text' && ' (TXT)'}
-                      {format === 'hcl' && ' (Terraform)'}
-                      {format === 'py' && ' (Python)'}
-                    </button>
-                  ))}
+                <h4 className="text-white font-medium mb-2">📄 Download Format:</h4>
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-blue-400 font-medium">📝 Markdown Documentation</span>
+                    <span className="bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">MD</span>
+                  </div>
+                  <p className="text-gray-300 text-sm">
+                    Complete service documentation with all generated files, setup instructions, 
+                    deployment guides, and best practices included.
+                  </p>
                 </div>
-                <p className="text-gray-400 text-xs mt-1">
-                  {downloadFormat === 'text' && 'All files as text archive with instructions'}
-                  {downloadFormat === 'json' && 'Structured JSON format with metadata'}
-                  {downloadFormat === 'yaml' && 'YAML configuration files combined'}
-                  {downloadFormat === 'hcl' && 'Terraform .tf files for infrastructure'}
-                  {downloadFormat === 'py' && 'Python files for ML/AI templates'}
-                </p>
               </div>
 
-              <div className="flex gap-4">
-                <button
-                  onClick={downloadService}
-                  className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                  📥 Download as {downloadFormat.toUpperCase()}
-                </button>
-                <button
-                  onClick={() => {
-                    setGenerationResult(null)
-                    setServiceName('')
-                    setSelectedTemplate(null)
-                  }}
-                  className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  🔄 Generate Another
-                </button>
+              <div className="space-y-4">
+                {/* Primary Actions */}
+                <div className="flex gap-4">
+                  <button
+                    onClick={downloadService}
+                    className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+                  >
+                    📥 Download Documentation
+                  </button>
+                  <button
+                    onClick={() => {
+                      setGenerationResult(null)
+                      setServiceName('')
+                      setSelectedTemplate(null)
+                    }}
+                    className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+                  >
+                    🔄 Generate Another
+                  </button>
+                </div>
+                
+                {/* IDE Launch Options */}
+                <div>
+                  <h4 className="text-white font-medium mb-2">🚀 Open in IDE:</h4>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={openInVSCode}
+                      className="bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M.228 8.607s-.591-.593 0-1.481l6.172-6.031s.593-.593 1.481 0l9.68 9.682-2.665 2.657L5.213 3.75.228 8.607zm23.543 6.785s.593.591 0 1.481l-6.172 6.031s-.593.593-1.481 0l-9.68-9.682 2.665-2.657 9.683 9.684 4.985-4.857zM3.962 14.593l2.666-2.657 2.666 2.657-2.666 2.657-2.666-2.657z"/>
+                      </svg>
+                      Open in VSCode
+                    </button>
+                    <button
+                      onClick={openInCursor}
+                      className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-8c0 1.1.9 2 2 2s2-.9 2-2-.9-2-2-2-2 .9-2 2z"/>
+                      </svg>
+                      Open in Cursor
+                    </button>
+                  </div>
+                  <p className="text-gray-400 text-xs mt-2">
+                    💡 Requires IDE to be installed locally. If the IDE doesn&apos;t open, download files manually.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-gray-800/30 rounded-lg p-3">
+                <p className="text-gray-400 text-xs">
+                  💡 <strong>Pro Tip:</strong> The downloaded Markdown file contains all your service files 
+                  with syntax highlighting, complete setup instructions, and deployment configurations. 
+                  Simply copy each code block to create your project files.
+                </p>
               </div>
             </div>
           </div>
@@ -548,7 +701,7 @@ Generated on ${new Date().toISOString()}
             <li>1. Enter a name for your service</li>
             <li>2. Select a template that matches your needs</li>
             <li>3. Click Generate to create your service</li>
-            <li>4. Download the generated code with all configurations</li>
+            <li>4. Download the MD documentation or open directly in VSCode/Cursor</li>
           </ol>
           <p className="text-gray-400 text-sm mt-4">
             Each service includes: Docker setup, Kubernetes manifests, CI/CD pipelines, 
